@@ -4,6 +4,7 @@ import {
   Loader,
   LoaderResource,
 } from 'pixi.js-legacy';
+import TWEEN from '@tweenjs/tween.js';
 
 import GameScreen, { Resources } from './GameScreen';
 import TitleScreen from './TitleScreen';
@@ -22,7 +23,7 @@ export default class App {
       width: SCENE_WIDTH,
       height: SCENE_HEIGHT,
       backgroundColor: 0x1099bb,
-      resolution: window.devicePixelRatio || 1,
+      resolution: 1,
       antialias: true,
     });
     domRoot.appendChild(this._app.view);
@@ -38,7 +39,14 @@ export default class App {
   }
 
   public run() {
-    this._app.start();
+    this._app.ticker.autoStart = false;
+    this._app.ticker.stop();
+    const animate = (time: number) => {
+        requestAnimationFrame(animate);
+        this._app.ticker.update(time);
+        TWEEN.update(time);
+    };
+    animate(performance.now());
   }
 
   private onLoadResources = (_: unknown, res: Partial<Record<string, LoaderResource>>) => {

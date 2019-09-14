@@ -1,12 +1,10 @@
 import {
   Point,
+  Sprite,
   Texture,
-  TilingSprite,
 } from 'pixi.js-legacy';
 
 import {
-  TEXTURE_TILE_HEIGHT,
-  TEXTURE_TILE_WIDTH,
   TILE_HEIGHT,
   TILE_OFFSET_X,
   TILE_OFFSET_Y,
@@ -25,7 +23,7 @@ export const enum CellColor {
   yellow,
 }
 
-export default class CellSprite extends TilingSprite {
+export default class CellSprite extends Sprite {
   public static coordToCellPos(coord: Point) {
     return new Point(
       Math.floor((coord.x - TILE_OFFSET_X) / TILE_WIDTH),
@@ -37,7 +35,7 @@ export default class CellSprite extends TilingSprite {
   private _color: CellColor;
 
   constructor(texture: Texture) {
-    super(texture, TEXTURE_TILE_WIDTH, TEXTURE_TILE_HEIGHT);
+    super(texture);
     this.scale.set(0.233, 0.233);
     this._status = CellStatus.interactive;
     this._color = CellColor.blue;
@@ -50,27 +48,31 @@ export default class CellSprite extends TilingSprite {
     );
   }
 
+  public setColor(color: CellColor) {
+    this._color = color;
+  }
+
+  public getColor() {
+    return this._color;
+  }
+
   public tilePos() {
     return CellSprite.coordToCellPos(this.position);
   }
 
-  public hasStatus(cellStatus: CellStatus) {
+  public isStatus(cellStatus: CellStatus) {
     return this._status === cellStatus;
   }
 
-  public hasNotStatus(cellStatus: CellStatus) {
-    return !this.hasStatus(cellStatus);
+  public isNotStatus(cellStatus: CellStatus) {
+    return !this.isStatus(cellStatus);
   }
 
-  public hasColor(color: CellColor) {
+  public isColor(color: CellColor) {
     return this._color === color;
   }
 
-  public hasNotColor(color: CellColor) {
-    return !this.hasColor(color);
+  public isNotColor(color: CellColor) {
+    return !this.isColor(color);
   }
-
-  // private textureTilePos(x: number, y: number) {
-    // return new Point(x * TEXTURE_TILE_WIDTH, y * TEXTURE_TILE_HEIGHT);
-  // }
 }

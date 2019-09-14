@@ -1,7 +1,5 @@
 export const SCENE_WIDTH = 800;
 export const SCENE_HEIGHT = 600;
-export const TEXTURE_TILE_WIDTH = 171;
-export const TEXTURE_TILE_HEIGHT = 192;
 export const MAP_WIDTH = 10;
 export const MAP_HEIGHT = 10;
 export const TILE_WIDTH = 40;

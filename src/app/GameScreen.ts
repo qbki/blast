@@ -1,11 +1,13 @@
 import {
   Container,
+  interaction,
   Point,
   Text,
   Texture,
 } from 'pixi.js-legacy';
+import TWEEN from '@tweenjs/tween.js';
 
-import CellSprite from './CellSprite';
+import CellSprite, { CellColor } from './CellSprite';
 import Button from './Button';
 import {
   GAME_FIELD_HEIGHT,
@@ -24,6 +26,7 @@ export interface Resources {
 
 export default class MenuScreen extends Container {
   private _map: CellSprite[][] = [];
+  private _moveLayer: Container;
   private _infoText: Text;
   private _resultText: Text;
 
@@ -75,17 +78,100 @@ export default class MenuScreen extends Container {
     const cellsContainer = new Container();
     cellsContainer.name = 'cells';
     cellsContainer.interactive = true;
+    cellsContainer.on('pointerdown', this.onPointerDown);
     this.addChild(cellsContainer);
 
-    this._map = Array(MAP_HEIGHT).fill([]);
+    this._map = Array(MAP_HEIGHT).fill(null).map(() => []);
+    const colorMap: {[key: string]: CellColor} = {
+      blue_cell: CellColor.blue,
+      block_green: CellColor.green,
+      block_purple: CellColor.purple,
+      block_red: CellColor.red,
+      block_yellow: CellColor.yellow,
+    };
     for (let y = MAP_HEIGHT - 1; y >= 0; y -= 1) {
       for (let x = 0; x < MAP_WIDTH; x += 1) {
         const colors = Object.keys(resources);
         const color = colors[Math.round(Math.random() * (colors.length - 1))];
+        const colorType = colorMap[color];
         const cell = new CellSprite(resources[color]);
+        if (colorType !== undefined) {
+          cell.setColor(colorType);
+        }
         cell.placeOnMap(x, y);
         this._map[y].push(cell);
         cellsContainer.addChild(cell);
+      }
+    }
+
+    this._moveLayer = new Container();
+    this.addChild(this._moveLayer);
+  }
+
+  private onPointerDown = (event: interaction.InteractionEvent) => {
+    const pos = CellSprite.coordToCellPos(event.data.getLocalPosition(this));
+    const cells = this.collectAllEqualCells(pos);
+    const amount = cells.length;
+    if (amount < 2) {
+      return;
+    }
+
+    for (let i = 0; i < amount; i += 1) {
+      const cell = cells[i];
+      const source = {
+        x: cell.position.x,
+        y: cell.position.y,
+      };
+      const intermediateDestination = {
+        x: cells[0].position.x + (Math.random() * 2 - 1) * 40,
+        y: cells[0].position.y + (Math.random() * 2 - 1) * 40,
+      };
+      const finalDestination = {
+        x: SCENE_WIDTH * 0.5,
+        y: -60,
+      };
+      this._moveLayer.addChild(cell);
+      const intermediateTween = new TWEEN.Tween(source)
+        .to(intermediateDestination, 200)
+        .easing(TWEEN.Easing.Quadratic.Out)
+        .onUpdate(arg => cell.position.set(arg.x, arg.y));
+      const finalTween = new TWEEN.Tween(intermediateDestination)
+        .to(finalDestination, 400)
+        .easing(TWEEN.Easing.Quadratic.Out)
+        .onUpdate(arg => cell.position.set(arg.x, arg.y));
+      intermediateTween.chain(finalTween).start();
+    }
+  }
+
+  private collectAllEqualCells(pos: Point): CellSprite[] {
+    const initialSprite = this._map[pos.y][pos.x];
+    const acc: CellSprite[] = [];
+    this.collectNearestEqualCells(initialSprite, acc);
+    return acc;
+  }
+
+  private collectNearestEqualCells(centralCell: CellSprite, acc: CellSprite[]) {
+    const { x: tileX, y: tileY } = centralCell.tilePos();
+    const nearestCells = [
+      {x: tileX, y: tileY},
+      {x: tileX, y: tileY - 1},
+      {x: tileX, y: tileY + 1},
+      {x: tileX - 1, y: tileY},
+      {x: tileX + 1, y: tileY},
+    ];
+    const nearestCellsamount = nearestCells.length;
+    for (let i = 0; i < nearestCellsamount; i += 1) {
+      const { x, y } = nearestCells[i];
+      if (x < 0 || y < 0 || x >= MAP_WIDTH || y >= MAP_HEIGHT) {
+        continue;
+      }
+      const cell = this._map[y][x];
+      if (acc.includes(cell)) {
+        continue;
+      }
+      if (centralCell.isColor(cell.getColor())) {
+        acc.push(centralCell);
+        this.collectNearestEqualCells(cell, acc);
       }
     }
   }
