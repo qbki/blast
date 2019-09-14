@@ -11,16 +11,13 @@ import {
   TILE_WIDTH,
 } from './consts';
 
-export const enum CellStatus {
-  interactive,
-}
-
 export const enum CellColor {
   blue,
   green,
   purple,
   red,
   yellow,
+  none,
 }
 
 export default class CellSprite extends Sprite {
@@ -31,13 +28,11 @@ export default class CellSprite extends Sprite {
     );
   }
 
-  private _status: CellStatus;
   private _color: CellColor;
 
   constructor(texture: Texture) {
     super(texture);
     this.scale.set(0.233, 0.233);
-    this._status = CellStatus.interactive;
     this._color = CellColor.blue;
   }
 
@@ -58,14 +53,6 @@ export default class CellSprite extends Sprite {
 
   public tilePos() {
     return CellSprite.coordToCellPos(this.position);
-  }
-
-  public isStatus(cellStatus: CellStatus) {
-    return this._status === cellStatus;
-  }
-
-  public isNotStatus(cellStatus: CellStatus) {
-    return !this.isStatus(cellStatus);
   }
 
   public isColor(color: CellColor) {
