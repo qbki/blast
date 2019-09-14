@@ -43,6 +43,7 @@ export default class GameScreen extends Container {
   private _map: CellNode[][] = [];
   private _bufferOfCells: CellSprite[] = [];
   private _moveLayer: Container;
+  private _cellsLayer: Container;
   private _infoText: Text;
   private _resultText: Text;
 
@@ -95,11 +96,12 @@ export default class GameScreen extends Container {
     cellsContainer.name = 'cells';
     cellsContainer.interactive = true;
     cellsContainer.on('pointerdown', this.onPointerDown);
+    this._cellsLayer = cellsContainer;
     this.addChild(cellsContainer);
 
     this._map = Array(MAP_HEIGHT).fill(null).map(() => []);
     const colorMap: {[key: string]: CellColor} = {
-      blue_cell: CellColor.blue,
+      block_blue: CellColor.blue,
       block_green: CellColor.green,
       block_purple: CellColor.purple,
       block_red: CellColor.red,
@@ -111,7 +113,7 @@ export default class GameScreen extends Container {
         const color = colors[Math.round(Math.random() * (colors.length - 1))];
         const colorType = colorMap[color];
         const cell = new CellSprite(resources[color]);
-        if (colorType !== undefined) {
+        if (colorType) {
           cell.setColor(colorType);
         }
         cell.placeOnMap(x, y);
@@ -125,6 +127,17 @@ export default class GameScreen extends Container {
 
     this._moveLayer = new Container();
     this.addChild(this._moveLayer);
+
+    for (let i = 0; i < MAP_WIDTH * MAP_HEIGHT; i += 1) {
+      const colors = Object.keys(resources);
+      const color = colors[Math.round(Math.random() * (colors.length - 1))];
+      const cell = new CellSprite(resources[color]);
+      const colorType = colorMap[color];
+      if (colorType) {
+        cell.setColor(colorType);
+      }
+      this._bufferOfCells.push(cell);
+    }
   }
 
   private onPointerDown = (event: interaction.InteractionEvent) => {
@@ -166,7 +179,10 @@ export default class GameScreen extends Container {
       intermediateTween
         .chain(finalTween)
         .start()
-        .onComplete(() => this._bufferOfCells.push(cell));
+        .onComplete(() => {
+          this._cellsLayer.removeChild(cell);
+          this._bufferOfCells.push(cell);
+        });
     }
     this.putDownCells();
   }
@@ -209,6 +225,7 @@ export default class GameScreen extends Container {
   private putDownCells() {
     for (let x = 0; x < MAP_WIDTH; x += 1) {
       const listOfCells = [];
+      let amountOfEmptyCells = 0;
       let lowestEmptyCell = null;
       for (let y = MAP_HEIGHT - 1; y >= 0; y -= 1) {
         const { cell } = this._map[y][x];
@@ -221,7 +238,11 @@ export default class GameScreen extends Container {
         } else if (cell === EMPTY_CELL) {
           lowestEmptyCell = { x, y };
         }
+        if (cell === EMPTY_CELL) {
+          amountOfEmptyCells += 1;
+        }
       }
+
       const amount = listOfCells.length;
       if (amount && lowestEmptyCell) {
         for (let i = 0; i < amount; i += 1) {
@@ -233,8 +254,8 @@ export default class GameScreen extends Container {
             y: cell.position.y,
           };
           const destination = {
-            x: (lowestEmptyCell.x) * TILE_WIDTH + TILE_OFFSET_X,
-            y: (lowestEmptyCell.y - i) * TILE_HEIGHT + TILE_OFFSET_Y,
+            x: (lowestX) * TILE_WIDTH + TILE_OFFSET_X,
+            y: (lowestY - i) * TILE_HEIGHT + TILE_OFFSET_Y,
           };
           cellNode.cell = cell;
           new TWEEN.Tween(source)
@@ -242,6 +263,35 @@ export default class GameScreen extends Container {
             .easing(TWEEN.Easing.Bounce.Out)
             .onUpdate(arg => cell.position.set(arg.x, arg.y))
             .start();
+        }
+      }
+
+      if (amountOfEmptyCells && lowestEmptyCell) {
+        for (let i = amountOfEmptyCells - 1; i >= 0; i -= 1) {
+          const cell = this._bufferOfCells.pop();
+          if (cell) {
+            const cellNode = this._map[i][x];
+            const source = {
+              alpha: 0,
+              x: x * TILE_WIDTH + TILE_OFFSET_X,
+              y: (i - amountOfEmptyCells) * TILE_HEIGHT + TILE_OFFSET_Y,
+            };
+            const destination = {
+              alpha: 1,
+              x: x * TILE_WIDTH + TILE_OFFSET_X,
+              y: i * TILE_HEIGHT + TILE_OFFSET_Y,
+            };
+            this._cellsLayer.addChild(cell);
+            cellNode.cell = cell;
+            new TWEEN.Tween(source)
+              .to(destination, 800)
+              .easing(TWEEN.Easing.Bounce.Out)
+              .onUpdate(arg => {
+                cell.position.set(arg.x, arg.y);
+                cell.alpha = arg.alpha;
+              })
+              .start();
+          }
         }
       }
     }

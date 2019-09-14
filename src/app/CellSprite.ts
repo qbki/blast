@@ -11,13 +11,13 @@ import {
   TILE_WIDTH,
 } from './consts';
 
-export const enum CellColor {
-  blue,
-  green,
-  purple,
-  red,
-  yellow,
-  none,
+export enum CellColor {
+  none = 'n',
+  blue = 'b',
+  green = 'g',
+  purple = 'p',
+  red = 'r',
+  yellow = 'y',
 }
 
 export default class CellSprite extends Sprite {
@@ -33,7 +33,7 @@ export default class CellSprite extends Sprite {
   constructor(texture: Texture) {
     super(texture);
     this.scale.set(0.233, 0.233);
-    this._color = CellColor.blue;
+    this._color = CellColor.none;
   }
 
   public placeOnMap(x: number, y: number) {
