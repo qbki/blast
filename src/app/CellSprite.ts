@@ -12,12 +12,12 @@ import {
 } from './consts';
 
 export enum CellColor {
-  none = 'n',
-  blue = 'b',
-  green = 'g',
-  purple = 'p',
-  red = 'r',
-  yellow = 'y',
+  none,
+  blue,
+  green,
+  purple,
+  red,
+  yellow,
 }
 
 export default class CellSprite extends Sprite {
@@ -49,6 +49,10 @@ export default class CellSprite extends Sprite {
 
   public getColor() {
     return this._color;
+  }
+
+  public setTexture(texture: Texture) {
+    this.texture = texture;
   }
 
   public tilePos() {
