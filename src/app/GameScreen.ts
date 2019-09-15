@@ -4,16 +4,19 @@ import {
   Point,
   Text,
   Texture,
+  Ticker,
 } from 'pixi.js-legacy';
 import TWEEN from '@tweenjs/tween.js';
 
 import CellSprite, { CellColor } from './CellSprite';
 import Button from './Button';
+import TimeBar from './TimeBar';
 import {
   GAME_FIELD_HEIGHT,
   GAME_FIELD_WIDTH,
   MAP_HEIGHT,
   MAP_WIDTH,
+  SCENE_HEIGHT,
   SCENE_WIDTH,
   TEXT_STYLE,
   TILE_HEIGHT,
@@ -53,8 +56,11 @@ export default class GameScreen extends Container {
   private _bufferOfScoreTexts: Text[] = [];
   private _moveLayer: Container;
   private _cellsLayer: Container;
+  private _timeBar!: TimeBar;
+  private _startRoundTimestamp!: number;
+  private _endRoundTimestamp!: number;
   private _scoreContainer: Container;
-  private _resultText: Text;
+  private _resultText!: Text;
   private _scoreText: Text;
   private _score: number = 0;
 
@@ -69,6 +75,7 @@ export default class GameScreen extends Container {
       anchor: new Point(1, 1),
       style: { fontSize: 24 },
     });
+    restartButton.on('pointerup', this.handleRestart);
     this.addChild(restartButton);
 
     const menuButton = new Button({
@@ -81,33 +88,20 @@ export default class GameScreen extends Container {
     menuButton.on('pointerup', () => this.emit('menu'));
     this.addChild(menuButton);
 
-    this._scoreText = new Text(
-      '',
-      {
-        ...TEXT_STYLE,
-        fontSize: 24,
-      },
-    );
+    this._scoreText = new Text('', { ...TEXT_STYLE, fontSize: 24 });
+    this._scoreText.text = String(0);
     this._scoreText.anchor.set(0, 1);
     this._scoreText.position.set(TILE_OFFSET_X, TILE_OFFSET_Y - textOffset);
     this.addChild(this._scoreText);
 
-    this._resultText = new Text(
-      '',
-      {
-        ...TEXT_STYLE,
-        fontSize: 36,
-      },
-    );
-    this._resultText.anchor.set(0.5, 1);
-    this._resultText.position.set(SCENE_WIDTH * 0.5, TILE_OFFSET_Y - textOffset);
-    this.addChild(this._resultText);
+    this.initTimeBar(resources);
 
-    const cellsContainer = new Container();
-    cellsContainer.interactive = true;
-    cellsContainer.on('pointerdown', this.onPointerDown);
-    this._cellsLayer = cellsContainer;
-    this.addChild(cellsContainer);
+    this._cellsLayer = new Container();
+    this._cellsLayer.interactive = true;
+    this._cellsLayer.on('pointerdown', this.onPointerDown);
+    this.addChild(this._cellsLayer);
+
+    this.initResultText();
 
     this._scoreContainer = new Container();
     this.addChild(this._scoreContainer);
@@ -122,7 +116,7 @@ export default class GameScreen extends Container {
     };
     for (let y = MAP_HEIGHT - 1; y >= 0; y -= 1) {
       for (let x = 0; x < MAP_WIDTH; x += 1) {
-        const colors = Object.keys(resources);
+        const colors = Object.keys(resources).filter(block => block.startsWith('block'));
         const color = colors[Math.round(Math.random() * (colors.length - 1))];
         const colorType = colorMap[color];
         const cell = new CellSprite(resources[color]);
@@ -134,7 +128,7 @@ export default class GameScreen extends Container {
           cell,
           status: CellStatus.filled,
         });
-        cellsContainer.addChild(cell);
+        this._cellsLayer.addChild(cell);
       }
     }
 
@@ -142,7 +136,7 @@ export default class GameScreen extends Container {
     this.addChild(this._moveLayer);
 
     for (let i = 0; i < MAP_WIDTH * MAP_HEIGHT; i += 1) {
-      const colors = Object.keys(resources);
+      const colors = Object.keys(resources).filter(block => block.startsWith('block'));
       const color = colors[Math.round(Math.random() * (colors.length - 1))];
       const cell = new CellSprite(resources[color]);
       const colorType = colorMap[color];
@@ -150,6 +144,7 @@ export default class GameScreen extends Container {
         cell.setColor(colorType);
       }
       cell.renderable = false;
+      cell.position.x = -(cell.width + 1);
       this._bufferOfCells.push(cell);
     }
 
@@ -360,15 +355,67 @@ export default class GameScreen extends Container {
     }
   }
 
-  // private handleWinning() {
-    // this._resultText.text = 'You are awesome!';
-    // this._resultText.style.fill = ['#ffffff', '#00ff66'];
-    // this.getChildByName('cells').interactive = false;
-  // }
+  private initResultText() {
+    this._resultText = new Text('', { ...TEXT_STYLE, fontSize: 36 });
+    this._resultText.anchor.set(0.5, 1);
+    this._resultText.position.set(SCENE_WIDTH * 0.5, SCENE_HEIGHT * 0.5);
+    this._resultText.renderable = false;
+    this.addChild(this._resultText);
+  }
 
-  // private handleLosing() {
-    // this._resultText.text = 'Game Over';
-    // this._resultText.style.fill = ['#ffffff', '#ff0066'];
-    // this.getChildByName('cells').interactive = false;
-  // }
+  private initTimeBar(resources: Resources) {
+    this._timeBar = new TimeBar({
+      barTexture: resources.bar,
+      bgTexture: resources.bar_bg,
+      width: 150,
+    });
+    this._timeBar.update(0);
+    this._timeBar.position.set((SCENE_WIDTH - 150) * 0.5, TILE_OFFSET_Y - 45);
+    this.restartTimer();
+    this.addChild(this._timeBar);
+  }
+
+  private restartTimer() {
+    this._startRoundTimestamp = Date.now();
+    this._endRoundTimestamp = this._startRoundTimestamp + 10 * 1000;
+    Ticker.shared.remove(this.updateTimeBar);
+    Ticker.shared.add(this.updateTimeBar);
+  }
+
+  private updateTimeBar = () => {
+    const whole = this._endRoundTimestamp - this._startRoundTimestamp;
+    const elapsed = Date.now() - this._startRoundTimestamp;
+    const ratio = elapsed / whole;
+    this._timeBar.update(ratio);
+    if (ratio > 1) {
+      Ticker.shared.remove(this.updateTimeBar);
+      if (this._score > 100) {
+        this.handleWinning();
+      } else {
+        this.handleLosing();
+      }
+    }
+  }
+
+  private handleWinning() {
+    this._resultText.text = 'You are awesome!';
+    this._resultText.style.fill = ['#ffffff', '#00ff66'];
+    this._resultText.renderable = true;
+    this._cellsLayer.interactive = false;
+  }
+
+  private handleLosing() {
+    this._resultText.text = 'Game Over';
+    this._resultText.style.fill = ['#ffffff', '#ff0066'];
+    this._resultText.renderable = true;
+    this._cellsLayer.interactive = false;
+  }
+
+  private handleRestart = () => {
+    this.restartTimer();
+    this._score = 0;
+    this._scoreText.text = String(0);
+    this._resultText.renderable = false;
+    this._cellsLayer.interactive = true;
+  }
 }

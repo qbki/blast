@@ -30,6 +30,8 @@ export default class App {
     domRoot.addEventListener('contextmenu', e => e.preventDefault());
     this._loader = new Loader();
     this._loader
+      .add('bar', 'images/bar.png')
+      .add('bar_bg', 'images/bar_bg.png')
       .add('block_blue', 'images/blue.png')
       .add('block_green', 'images/green.png')
       .add('block_purple', 'images/purple.png')
