@@ -63,6 +63,7 @@ export default class CellSprite extends Sprite {
           .repeat(Infinity)
           .start();
       } else {
+        this.alpha = 1;
         this.filters = [];
         if (this._tween) {
           this._tween.stop();
