@@ -67,14 +67,14 @@ export default class App {
     const menu = new MenuScreen();
     const blurFilter = new filters.BlurFilter();
 
-    title.visible = false;
+    title.visible = true;
     title.on('start', () => {
       title.visible = false;
       game.visible = true;
     });
     this._app.stage.addChild(title);
 
-    game.visible = true;
+    game.visible = false;
     game.on('menu', () => {
       game.interactiveChildren = false;
       game.filters = [blurFilter];
@@ -87,7 +87,7 @@ export default class App {
       game.filters = [];
       menu.visible = false;
       game.visible = false;
-      // game.restart();
+      game.restart();
       game.interactiveChildren = true;
       title.visible = true;
     });

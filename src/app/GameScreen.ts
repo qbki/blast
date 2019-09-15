@@ -156,6 +156,10 @@ export default class GameScreen extends Container {
     }
   }
 
+  public restart() {
+    this.handleRestart();
+  }
+
   private onPointerDown = (event: interaction.InteractionEvent) => {
     const initialCellPos = CellSprite.coordToCellPos(event.data.getLocalPosition(this));
     const [cells, coordinates] = this.collectAllEqualCells(initialCellPos);
