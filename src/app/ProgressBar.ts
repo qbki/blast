@@ -5,21 +5,21 @@ import {
   Texture,
 } from 'pixi.js-legacy';
 
-interface TimeBarProps {
+interface ProgressBarProps {
   barTexture: Texture;
   bgTexture: Texture;
   width: number;
 }
 
-export default class TimeBar extends Container {
+export default class ProgressBar extends Container {
   private static HEIGHT = 32;
   private static ROUND = 17;
   private _width = 0;
   private _bar: Graphics;
 
-  constructor({ barTexture, bgTexture, width }: TimeBarProps) {
+  constructor({ barTexture, bgTexture, width }: ProgressBarProps) {
     super();
-    const Self = TimeBar;
+    const Self = ProgressBar;
     this._width = width;
     const scale = Matrix.IDENTITY.scale(1, 0.5);
 

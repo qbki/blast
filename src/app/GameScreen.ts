@@ -4,14 +4,13 @@ import {
   Point,
   Text,
   Texture,
-  Ticker,
 } from 'pixi.js-legacy';
 import shuffle from 'lodash.shuffle';
 import TWEEN from '@tweenjs/tween.js';
 
 import CellSprite, { CellColor } from './CellSprite';
 import Button from './Button';
-import TimeBar from './TimeBar';
+import ProgressBar from './ProgressBar';
 import {
   GAME_FIELD_HEIGHT,
   GAME_FIELD_WIDTH,
@@ -78,25 +77,29 @@ function mapColorToResource(color: CellColor) {
 }
 
 export default class GameScreen extends Container {
+  private TEXT_OFFSET = 10;
   private _map: CellSprite[][] = [];
   private _bufferOfCells: CellSprite[] = [];
   private _bufferOfScoreTexts: Text[] = [];
   private _moveLayer: Container;
   private _cellsLayer: Container;
-  private _timeBar!: TimeBar;
-  private _startRoundTimestamp!: number;
-  private _endRoundTimestamp!: number;
+  private _progressBar!: ProgressBar;
   private _scoreContainer: Container;
   private _resultText!: Text;
-  private _scoreText: Text;
-  private _score: number = 0;
+  private _scoreText!: Text;
+  private _movesText!: Text;
   private _colorIterator: Iterator<any>;
   private _resources: Resources;
+  private _targetScore: number;
+  private _maxMoves: number;
+  private _score: number = 0;
+  private _moves: number = 0;
 
   constructor(resources: Resources) {
     super();
     this._resources = resources;
-    const textOffset = 10;
+    this._maxMoves = 30;
+    this._targetScore = 100;
     this._colorIterator = makeColorGenerator([
       CellColor.blue,
       CellColor.green,
@@ -107,7 +110,7 @@ export default class GameScreen extends Container {
 
     const restartButton = new Button({
       x: TILE_OFFSET_X + GAME_FIELD_WIDTH,
-      y: TILE_OFFSET_Y - textOffset,
+      y: TILE_OFFSET_Y - this.TEXT_OFFSET,
       caption: 'Restart',
       anchor: new Point(1, 1),
       style: { fontSize: 24 },
@@ -117,7 +120,7 @@ export default class GameScreen extends Container {
 
     const menuButton = new Button({
       x: TILE_OFFSET_X + GAME_FIELD_WIDTH,
-      y: TILE_OFFSET_Y + GAME_FIELD_HEIGHT + textOffset,
+      y: TILE_OFFSET_Y + GAME_FIELD_HEIGHT + this.TEXT_OFFSET,
       caption: 'Pause',
       anchor: new Point(1, 0),
       style: { fontSize: 24 },
@@ -125,13 +128,9 @@ export default class GameScreen extends Container {
     menuButton.on('pointerup', () => this.emit('menu'));
     this.addChild(menuButton);
 
-    this._scoreText = new Text('', { ...TEXT_STYLE, fontSize: 24 });
-    this._scoreText.text = String(0);
-    this._scoreText.anchor.set(0, 1);
-    this._scoreText.position.set(TILE_OFFSET_X, TILE_OFFSET_Y - textOffset);
-    this.addChild(this._scoreText);
-
-    this.initTimeBar();
+    this.initProgressBar();
+    this.initScore();
+    this.initMoves();
 
     this._cellsLayer = new Container();
     this._cellsLayer.interactive = true;
@@ -206,7 +205,10 @@ export default class GameScreen extends Container {
         .start();
     }
     this.putDownCells();
-    this.updateScore(initialCellPos, cells.length);
+    this.incrementScore(initialCellPos, cells.length);
+    this.updateProgressBar();
+    this.updateMoves(this._moves - 1);
+    this.checkWinningConditions();
   }
 
   private collectAllEqualCells(pos: Point): [CellSprite[], Coordinate[]] {
@@ -314,6 +316,8 @@ export default class GameScreen extends Container {
               cell.setTexture(this._resources[resName]);
             }
             this._cellsLayer.addChild(cell);
+            cell.alpha = 0;
+            cell.position.set(source.x, source.y);
             cell.renderable = true;
             this._map[i][x] = cell;
             new TWEEN.Tween(source)
@@ -330,9 +334,58 @@ export default class GameScreen extends Container {
     }
   }
 
-  private updateScore(pos: Point, score: number) {
+  private updateScore(score: number) {
+    this._scoreText.text = `${this._targetScore} / ${this._score}`;
+  }
+
+  private updateMoves(moves: number) {
+    this._moves = moves;
+    this._movesText.text = String(moves);
+  }
+
+  private updateProgressBar = () => {
+    const ratio = this._score / this._targetScore;
+    this._progressBar.update(ratio);
+  }
+
+  private checkWinningConditions() {
+    if (this._score >= this._targetScore) {
+      this.handleWinning();
+    } else if (this._moves <= 0) {
+      this.handleLosing();
+    }
+  }
+
+  private placeCellsOnMap() {
+    for (let y = MAP_HEIGHT - 1; y >= 0; y -= 1) {
+      for (let x = 0; x < MAP_WIDTH; x += 1) {
+        const colorType = this._colorIterator.next().value;
+        const resName = mapColorToResource(colorType);
+        if (!resName) {
+          break;
+        }
+        const cell = this._bufferOfCells.pop();
+        if (cell) {
+          cell.setColor(colorType);
+          cell.setTexture(this._resources[resName]);
+          cell.placeOnMap(x, y);
+          cell.renderable = true;
+          const mapCell = this._map[y][x];
+          if (mapCell !== EMPTY_CELL) {
+            mapCell.renderable = false;
+            mapCell.position.x = -mapCell.width - 1;
+            this._bufferOfCells.push(mapCell);
+          }
+          this._map[y][x] = cell;
+          this._cellsLayer.addChild(cell);
+        }
+      }
+    }
+  }
+
+  private incrementScore(pos: Point, score: number) {
     this._score += score;
-    this._scoreText.text = String(this._score);
+    this.updateScore(score);
     const text = this._bufferOfScoreTexts.pop();
     if (text) {
       const source = {
@@ -371,72 +424,48 @@ export default class GameScreen extends Container {
   }
 
   private initCells() {
-    this._map = Array(MAP_HEIGHT).fill(null).map(() => []);
-    // init map cells
-    for (let y = MAP_HEIGHT - 1; y >= 0; y -= 1) {
-      for (let x = 0; x < MAP_WIDTH; x += 1) {
-        const colorType = this._colorIterator.next().value;
-        const resName = mapColorToResource(colorType);
-        if (!resName) {
-          break;
-        }
-        const cell = new CellSprite(this._resources[resName]);
-        cell.setColor(colorType);
-        cell.placeOnMap(x, y);
-        this._map[y].push(cell);
-        this._cellsLayer.addChild(cell);
-      }
-    }
-    // init buffered cells
-    for (let i = 0; i < MAP_WIDTH * MAP_HEIGHT; i += 1) {
+    this._map = Array(MAP_HEIGHT).fill(null).map(() => Array(MAP_WIDTH).fill(EMPTY_CELL));
+    for (let i = 0; i < MAP_WIDTH * MAP_HEIGHT * 2; i += 1) {
       const colorType = this._colorIterator.next().value;
       const resName = mapColorToResource(colorType);
       if (!resName) {
         break;
       }
-      const cell = new CellSprite(this._resources[resName]);
-      if (colorType) {
-        cell.setColor(colorType);
-      }
+      const cell = new CellSprite(this._resources.blue);
+      cell.setColor(CellColor.none);
       cell.renderable = false;
-      cell.position.x = -(cell.width + 1);
+      cell.position.x = -cell.width - 1;
       this._bufferOfCells.push(cell);
     }
-
+    this.placeCellsOnMap();
   }
 
-  private initTimeBar() {
-    this._timeBar = new TimeBar({
+  private initProgressBar() {
+    this._progressBar = new ProgressBar({
       barTexture: this._resources.bar,
       bgTexture: this._resources.bar_bg,
       width: 150,
     });
-    this._timeBar.update(0);
-    this._timeBar.position.set((SCENE_WIDTH - 150) * 0.5, TILE_OFFSET_Y - 45);
-    this.restartTimer();
-    this.addChild(this._timeBar);
+    this._progressBar.update(0);
+    this._progressBar.position.set(TILE_OFFSET_X, TILE_OFFSET_Y - 45);
+    this.addChild(this._progressBar);
   }
 
-  private restartTimer() {
-    this._startRoundTimestamp = Date.now();
-    this._endRoundTimestamp = this._startRoundTimestamp + 10 * 1000;
-    Ticker.shared.remove(this.updateTimeBar);
-    Ticker.shared.add(this.updateTimeBar);
+  private initScore() {
+    this._scoreText = new Text('', { ...TEXT_STYLE, fontSize: 24 });
+    this._scoreText.anchor.set(0.5, 1);
+    this._scoreText.position.set(TILE_OFFSET_X + 75, TILE_OFFSET_Y - this.TEXT_OFFSET);
+    this.addChild(this._scoreText);
+    this.updateScore(0);
   }
 
-  private updateTimeBar = () => {
-    const whole = this._endRoundTimestamp - this._startRoundTimestamp;
-    const elapsed = Date.now() - this._startRoundTimestamp;
-    const ratio = elapsed / whole;
-    this._timeBar.update(ratio);
-    if (ratio > 1) {
-      Ticker.shared.remove(this.updateTimeBar);
-      if (this._score > 100) {
-        this.handleWinning();
-      } else {
-        this.handleLosing();
-      }
-    }
+  private initMoves() {
+    this._moves = this._maxMoves;
+    this._movesText = new Text(String(this._moves), { ...TEXT_STYLE, fontSize: 24 });
+    this._movesText.anchor.set(0.5, 1);
+    this._movesText.position.set(SCENE_WIDTH * 0.54, TILE_OFFSET_Y - this.TEXT_OFFSET);
+    this.addChild(this._movesText);
+    this.updateMoves(this._moves);
   }
 
   private handleWinning() {
@@ -454,11 +483,13 @@ export default class GameScreen extends Container {
   }
 
   private handleRestart = () => {
-    this.restartTimer();
     this._score = 0;
-    this._scoreText.text = String(0);
+    this._moves = this._maxMoves;
+    this.updateScore(0);
+    this.updateMoves(this._maxMoves);
+    this.updateProgressBar();
+    this.placeCellsOnMap();
     this._resultText.renderable = false;
     this._cellsLayer.interactive = true;
   }
-
 }
