@@ -39,13 +39,24 @@ interface CellNode {
 const EMPTY_CELL = new CellSprite(Texture.EMPTY);
 EMPTY_CELL.setColor(CellColor.none);
 
+function calcX(xPositionOnMap: number) {
+  return xPositionOnMap * TILE_WIDTH + TILE_OFFSET_X;
+}
+
+function calcY(yPositionOnMap: number) {
+  return yPositionOnMap * TILE_HEIGHT + TILE_OFFSET_Y;
+}
+
 export default class GameScreen extends Container {
   private _map: CellNode[][] = [];
   private _bufferOfCells: CellSprite[] = [];
+  private _bufferOfScoreTexts: Text[] = [];
   private _moveLayer: Container;
   private _cellsLayer: Container;
-  private _infoText: Text;
+  private _scoreContainer: Container;
   private _resultText: Text;
+  private _scoreText: Text;
+  private _score: number = 0;
 
   constructor(resources: Resources) {
     super();
@@ -70,16 +81,16 @@ export default class GameScreen extends Container {
     menuButton.on('pointerup', () => this.emit('menu'));
     this.addChild(menuButton);
 
-    this._infoText = new Text(
+    this._scoreText = new Text(
       '',
       {
         ...TEXT_STYLE,
         fontSize: 24,
       },
     );
-    this._infoText.anchor.set(0, 1);
-    this._infoText.position.set(TILE_OFFSET_X, TILE_OFFSET_Y - textOffset);
-    this.addChild(this._infoText);
+    this._scoreText.anchor.set(0, 1);
+    this._scoreText.position.set(TILE_OFFSET_X, TILE_OFFSET_Y - textOffset);
+    this.addChild(this._scoreText);
 
     this._resultText = new Text(
       '',
@@ -93,11 +104,13 @@ export default class GameScreen extends Container {
     this.addChild(this._resultText);
 
     const cellsContainer = new Container();
-    cellsContainer.name = 'cells';
     cellsContainer.interactive = true;
     cellsContainer.on('pointerdown', this.onPointerDown);
     this._cellsLayer = cellsContainer;
     this.addChild(cellsContainer);
+
+    this._scoreContainer = new Container();
+    this.addChild(this._scoreContainer);
 
     this._map = Array(MAP_HEIGHT).fill(null).map(() => []);
     const colorMap: {[key: string]: CellColor} = {
@@ -136,7 +149,22 @@ export default class GameScreen extends Container {
       if (colorType) {
         cell.setColor(colorType);
       }
+      cell.renderable = false;
       this._bufferOfCells.push(cell);
+    }
+
+    for (let i = 0; i < 10; i += 1) {
+      const text = new Text(
+        '',
+        {
+          ...TEXT_STYLE,
+          fontSize: 24,
+        },
+      );
+      text.anchor.set(-0.5, 1);
+      text.renderable = false;
+      this._bufferOfScoreTexts.push(text);
+      this._scoreContainer.addChild(text);
     }
   }
 
@@ -171,20 +199,22 @@ export default class GameScreen extends Container {
       const intermediateTween = new TWEEN.Tween(source)
         .to(intermediateDestination, 130)
         .easing(TWEEN.Easing.Quadratic.Out)
-        .onUpdate(arg => cell.position.set(arg.x, arg.y));
+        .onUpdate(props => cell.position.set(props.x, props.y));
       const finalTween = new TWEEN.Tween(intermediateDestination)
         .to(finalDestination, 400)
         .easing(TWEEN.Easing.Quadratic.Out)
-        .onUpdate(arg => cell.position.set(arg.x, arg.y));
-      intermediateTween
-        .chain(finalTween)
-        .start()
+        .onUpdate(props => cell.position.set(props.x, props.y))
         .onComplete(() => {
+          cell.renderable = false;
           this._cellsLayer.removeChild(cell);
           this._bufferOfCells.push(cell);
         });
+      intermediateTween
+        .chain(finalTween)
+        .start();
     }
     this.putDownCells();
+    this.updateScore(pos, cells.length);
   }
 
   private collectAllEqualCells(pos: Point): CellNode[] {
@@ -254,14 +284,14 @@ export default class GameScreen extends Container {
             y: cell.position.y,
           };
           const destination = {
-            x: (lowestX) * TILE_WIDTH + TILE_OFFSET_X,
-            y: (lowestY - i) * TILE_HEIGHT + TILE_OFFSET_Y,
+            x: calcX(lowestX),
+            y: calcY(lowestY - i),
           };
           cellNode.cell = cell;
           new TWEEN.Tween(source)
             .to(destination, 800)
             .easing(TWEEN.Easing.Bounce.Out)
-            .onUpdate(arg => cell.position.set(arg.x, arg.y))
+            .onUpdate(props => cell.position.set(props.x, props.y))
             .start();
         }
       }
@@ -273,27 +303,60 @@ export default class GameScreen extends Container {
             const cellNode = this._map[i][x];
             const source = {
               alpha: 0,
-              x: x * TILE_WIDTH + TILE_OFFSET_X,
-              y: (i - amountOfEmptyCells) * TILE_HEIGHT + TILE_OFFSET_Y,
+              x: calcX(x),
+              y: calcY(i - amountOfEmptyCells),
             };
             const destination = {
               alpha: 1,
-              x: x * TILE_WIDTH + TILE_OFFSET_X,
-              y: i * TILE_HEIGHT + TILE_OFFSET_Y,
+              x: calcX(x),
+              y: calcY(i),
             };
             this._cellsLayer.addChild(cell);
+            cell.renderable = true;
             cellNode.cell = cell;
             new TWEEN.Tween(source)
               .to(destination, 800)
               .easing(TWEEN.Easing.Bounce.Out)
-              .onUpdate(arg => {
-                cell.position.set(arg.x, arg.y);
-                cell.alpha = arg.alpha;
+              .onUpdate(props => {
+                cell.position.set(props.x, props.y);
+                cell.alpha = props.alpha;
               })
               .start();
           }
         }
       }
+    }
+  }
+
+  private updateScore(pos: Point, score: number) {
+    this._score += score;
+    this._scoreText.text = String(this._score);
+    const text = this._bufferOfScoreTexts.pop();
+    if (text) {
+      const source = {
+        alpha: 1,
+        y: calcY(pos.y),
+      };
+      text.alpha = source.alpha;
+      text.position.set(calcX(pos.x), source.y);
+      text.renderable = true;
+      text.text = String(score);
+      const destination = {
+        alpha: 0,
+        y: source.y - 20,
+      };
+      new TWEEN.Tween(source)
+        .to(destination, 1000)
+        .easing(TWEEN.Easing.Quartic.InOut)
+        .onUpdate(props => {
+          text.alpha = props.alpha;
+          text.position.y = props.y;
+        })
+        .onComplete(() => {
+          text.renderable = false;
+          this._bufferOfScoreTexts.push(text);
+        })
+        .start();
     }
   }
 
