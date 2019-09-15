@@ -24,7 +24,7 @@ export default class App {
       height: SCENE_HEIGHT,
       backgroundColor: 0x1099bb,
       resolution: 1,
-      antialias: true,
+      antialias: false,
     });
     domRoot.appendChild(this._app.view);
     domRoot.addEventListener('contextmenu', e => e.preventDefault());

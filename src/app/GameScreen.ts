@@ -8,14 +8,18 @@ import {
 import shuffle from 'lodash.shuffle';
 import TWEEN from '@tweenjs/tween.js';
 
-import CellSprite, { CellColor } from './CellSprite';
+import CellSprite from './CellSprite';
 import Button from './Button';
 import ProgressBar from './ProgressBar';
 import {
+  BOMB_APPEARANCE_CHANCE,
+  COLORS,
+  EXPLOSION_RADIUS,
   GAME_FIELD_HEIGHT,
   GAME_FIELD_WIDTH,
   MAP_HEIGHT,
   MAP_WIDTH,
+  MIN_EQUAL_CELLS,
   SCENE_HEIGHT,
   SCENE_WIDTH,
   TEXT_STYLE,
@@ -24,6 +28,7 @@ import {
   TILE_OFFSET_Y,
   TILE_WIDTH,
 } from './consts';
+import { CellColor, CellType } from './types';
 
 export interface Resources {
   [key: string]: Texture;
@@ -59,6 +64,7 @@ function *makeColorGenerator<T>(colors: T[], bufferSize: number) {
     yield buffer[j];
     j += 1;
     if (j >= alignedBufferSize) {
+      buffer = shuffle(buffer);
       j = 0;
     }
   }
@@ -100,13 +106,7 @@ export default class GameScreen extends Container {
     this._resources = resources;
     this._maxMoves = 30;
     this._targetScore = 100;
-    this._colorIterator = makeColorGenerator([
-      CellColor.blue,
-      CellColor.green,
-      CellColor.purple,
-      CellColor.red,
-      CellColor.yellow,
-    ], 100);
+    this._colorIterator = makeColorGenerator(COLORS, MAP_WIDTH * MAP_HEIGHT * 2.3);
 
     const restartButton = new Button({
       x: TILE_OFFSET_X + GAME_FIELD_WIDTH,
@@ -162,9 +162,16 @@ export default class GameScreen extends Container {
 
   private onPointerDown = (event: interaction.InteractionEvent) => {
     const initialCellPos = CellSprite.coordToCellPos(event.data.getLocalPosition(this));
-    const [cells, coordinates] = this.collectAllEqualCells(initialCellPos);
+    const initialCell = this.getCell(initialCellPos);
+    let cells = [];
+    let coordinates = [];
+    if (initialCell.getType() === CellType.bomb) {
+      [cells, coordinates] = this.collectAllCellsByRadius(initialCellPos, EXPLOSION_RADIUS);
+    } else {
+      [cells, coordinates] = this.collectAllEqualCells(initialCellPos, MIN_EQUAL_CELLS);
+    }
     const amount = cells.length;
-    if (amount < 2) {
+    if (amount === 0) {
       return;
     }
     const initialEventCellPosition = {
@@ -172,7 +179,7 @@ export default class GameScreen extends Container {
       y: cells[0].position.y,
     };
     const finalDestination = {
-      x: SCENE_WIDTH * 0.5,
+      x: TILE_OFFSET_X,
       y: -60,
     };
     for (let i = 0; i < amount; i += 1) {
@@ -181,6 +188,7 @@ export default class GameScreen extends Container {
       if (!cell) {
         continue;
       }
+      cell.setType(CellType.regular);
       this._map[coord.y][coord.x] = EMPTY_CELL;
       const source = {
         x: cell.position.x,
@@ -215,14 +223,35 @@ export default class GameScreen extends Container {
     this.checkWinningConditions();
   }
 
-  private collectAllEqualCells(pos: Point): [CellSprite[], Coordinate[]] {
+  private collectAllCellsByRadius(pos: Point, radius: number): [CellSprite[], Coordinate[]] {
+    const squaredRadius = radius * radius;
+    const cells = [];
+    const coords = [];
+    for (let x = 0; x < MAP_WIDTH; x += 1) {
+      for (let y = 0; y < MAP_HEIGHT; y += 1) {
+        const dx = pos.x - x;
+        const dy = pos.y - y;
+        if (squaredRadius >= dx * dx + dy * dy) {
+          const cell = this._map[y][x];
+          cells.push(cell);
+          coords.push({ x, y });
+        }
+      }
+    }
+    return [cells, coords];
+  }
+
+  private collectAllEqualCells(pos: Point, min: number): [CellSprite[], Coordinate[]] {
     const initialCell = this._map[pos.y][pos.x];
     const cellsAcc: CellSprite[] = [];
     const coordAcc: Coordinate[] = [];
     if (initialCell !== EMPTY_CELL) {
       this.collectNearestEqualCells(initialCell, pos, cellsAcc, coordAcc);
     }
-    return [cellsAcc, coordAcc];
+    if (cellsAcc.length >= min) {
+      return [cellsAcc, coordAcc];
+    }
+    return [[], []];
   }
 
   private collectNearestEqualCells(
@@ -313,12 +342,8 @@ export default class GameScreen extends Container {
               x: calcX(x),
               y: calcY(i),
             };
-            const colorType = this._colorIterator.next().value;
-            const resName = mapColorToResource(colorType);
-            if (resName) {
-              cell.setColor(colorType);
-              cell.setTexture(this._resources[resName]);
-            }
+            const color = this._colorIterator.next().value;
+            this.determineCellType(cell, color);
             this._cellsLayer.addChild(cell);
             cell.alpha = 0;
             cell.position.set(source.x, source.y);
@@ -352,6 +377,10 @@ export default class GameScreen extends Container {
     this._progressBar.update(ratio);
   }
 
+  private getCell(pos: Coordinate) {
+    return this._map[pos.y][pos.x];
+  }
+
   private checkWinningConditions() {
     if (this._score >= this._targetScore) {
       this.handleWinning();
@@ -360,19 +389,35 @@ export default class GameScreen extends Container {
     }
   }
 
+  private determineCellType(cell: CellSprite, color: CellColor) {
+    if (Math.random() < BOMB_APPEARANCE_CHANCE) {
+      cell.setTexture(this._resources.block_blue);
+      cell.setColor(CellColor.none);
+      cell.setType(CellType.bomb);
+    } else {
+      const resName = mapColorToResource(color);
+      if (resName) {
+        cell.setTexture(this._resources[resName]);
+      } else {
+        cell.setTexture(this._resources.block_blue);
+      }
+      cell.setColor(color);
+      cell.setType(CellType.regular);
+    }
+  }
+
   private placeCellsOnMap() {
     for (let y = MAP_HEIGHT - 1; y >= 0; y -= 1) {
       for (let x = 0; x < MAP_WIDTH; x += 1) {
-        const colorType = this._colorIterator.next().value;
-        const resName = mapColorToResource(colorType);
+        const color = this._colorIterator.next().value;
+        const resName = mapColorToResource(color);
         if (!resName) {
           break;
         }
         const cell = this._bufferOfCells.pop();
         if (cell) {
-          cell.setColor(colorType);
-          cell.setTexture(this._resources[resName]);
           cell.placeOnMap(x, y);
+          this.determineCellType(cell, color);
           cell.renderable = true;
           const mapCell = this._map[y][x];
           if (mapCell !== EMPTY_CELL) {
