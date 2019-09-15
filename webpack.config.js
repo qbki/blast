@@ -1,4 +1,5 @@
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
 const path = require('path');
 
 function root(...args) {
@@ -29,6 +30,10 @@ module.exports = {
     contentBase: root('assets'),
   },
   plugins: [
+    new HtmlWebpackPlugin({
+      template: root('src/index.html'),
+      hash: true,
+    }),
     new CopyWebpackPlugin([
       { from: 'src/index.html', to: 'index.html', toType: 'file' },
       { from: 'assets/images', to: 'images', toType: 'dir' },
