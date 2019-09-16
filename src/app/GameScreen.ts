@@ -12,6 +12,10 @@ import CellSprite from './CellSprite';
 import Button from './Button';
 import ProgressBar from './ProgressBar';
 import {
+  collectCellsInRadius,
+  collectEqualCells,
+} from './strategies';
+import {
   BOMB_APPEARANCE_CHANCE,
   COLORS,
   EXPLOSION_RADIUS,
@@ -33,15 +37,6 @@ import { CellColor, CellType } from './types';
 export interface Resources {
   [key: string]: Texture;
 }
-
-interface Coordinate {
-  x: number;
-  y: number;
-}
-
-const EMPTY_CELL = new CellSprite(Texture.EMPTY);
-EMPTY_CELL.renderable = false;
-EMPTY_CELL.setColor(CellColor.none);
 
 function calcX(xPositionOnMap: number) {
   return xPositionOnMap * TILE_WIDTH + TILE_OFFSET_X;
@@ -100,13 +95,14 @@ export default class GameScreen extends Container {
   private _maxMoves: number;
   private _score: number = 0;
   private _moves: number = 0;
+  private _strategies: Map<CellType, (position: Point) => [CellSprite[], Point[]]>;
 
   constructor(resources: Resources) {
     super();
     this._resources = resources;
     this._maxMoves = 30;
     this._targetScore = 100;
-    this._colorIterator = makeColorGenerator(COLORS, MAP_WIDTH * MAP_HEIGHT * 2.3);
+    this._colorIterator = makeColorGenerator(COLORS, MAP_WIDTH * MAP_HEIGHT * 3);
 
     const restartButton = new Button({
       x: TILE_OFFSET_X + GAME_FIELD_WIDTH,
@@ -154,6 +150,16 @@ export default class GameScreen extends Container {
       this._bufferOfScoreTexts.push(text);
       this._scoreContainer.addChild(text);
     }
+
+    this._strategies = new Map();
+    this._strategies.set(
+      CellType.bomb,
+      (position: Point) => collectCellsInRadius(this._map, position, EXPLOSION_RADIUS),
+    );
+    this._strategies.set(
+      CellType.regular,
+      (position: Point) => collectEqualCells(this._map, position, MIN_EQUAL_CELLS),
+    );
   }
 
   public restart() {
@@ -163,13 +169,11 @@ export default class GameScreen extends Container {
   private onPointerDown = (event: interaction.InteractionEvent) => {
     const initialCellPos = CellSprite.coordToCellPos(event.data.getLocalPosition(this));
     const initialCell = this.getCell(initialCellPos);
-    let cells = [];
-    let coordinates = [];
-    if (initialCell.getType() === CellType.bomb) {
-      [cells, coordinates] = this.collectAllCellsByRadius(initialCellPos, EXPLOSION_RADIUS);
-    } else {
-      [cells, coordinates] = this.collectAllEqualCells(initialCellPos, MIN_EQUAL_CELLS);
+    const execStragegy = this._strategies.get(initialCell.getType());
+    if (!execStragegy) {
+      return;
     }
+    const [cells, coordinates] = execStragegy(initialCellPos);
     const amount = cells.length;
     if (amount === 0) {
       return;
@@ -189,7 +193,7 @@ export default class GameScreen extends Container {
         continue;
       }
       cell.setType(CellType.regular);
-      this._map[coord.y][coord.x] = EMPTY_CELL;
+      this._map[coord.y][coord.x] = this.prepareEmpty();
       const source = {
         x: cell.position.x,
         y: cell.position.y,
@@ -223,69 +227,6 @@ export default class GameScreen extends Container {
     this.checkWinningConditions();
   }
 
-  private collectAllCellsByRadius(pos: Point, radius: number): [CellSprite[], Coordinate[]] {
-    const squaredRadius = radius * radius;
-    const cells = [];
-    const coords = [];
-    for (let x = 0; x < MAP_WIDTH; x += 1) {
-      for (let y = 0; y < MAP_HEIGHT; y += 1) {
-        const dx = pos.x - x;
-        const dy = pos.y - y;
-        if (squaredRadius >= dx * dx + dy * dy) {
-          const cell = this._map[y][x];
-          cells.push(cell);
-          coords.push({ x, y });
-        }
-      }
-    }
-    return [cells, coords];
-  }
-
-  private collectAllEqualCells(pos: Point, min: number): [CellSprite[], Coordinate[]] {
-    const initialCell = this._map[pos.y][pos.x];
-    const cellsAcc: CellSprite[] = [];
-    const coordAcc: Coordinate[] = [];
-    if (initialCell !== EMPTY_CELL) {
-      this.collectNearestEqualCells(initialCell, pos, cellsAcc, coordAcc);
-    }
-    if (cellsAcc.length >= min) {
-      return [cellsAcc, coordAcc];
-    }
-    return [[], []];
-  }
-
-  private collectNearestEqualCells(
-    centralCell: CellSprite,
-    pos: Coordinate,
-    acc: CellSprite[],
-    coordAcc: Coordinate[],
-  ) {
-    const { x: tileX, y: tileY } = pos;
-    const nearestCells = [
-      {x: tileX, y: tileY},
-      {x: tileX, y: tileY - 1},
-      {x: tileX, y: tileY + 1},
-      {x: tileX - 1, y: tileY},
-      {x: tileX + 1, y: tileY},
-    ];
-    const nearestCellsAmount = nearestCells.length;
-    for (let i = 0; i < nearestCellsAmount; i += 1) {
-      const { x, y } = nearestCells[i];
-      if (x < 0 || y < 0 || x >= MAP_WIDTH || y >= MAP_HEIGHT) {
-        continue;
-      }
-      const cellNode = this._map[y][x];
-      if (acc.includes(cellNode)) {
-        continue;
-      }
-      if (centralCell.isColor(cellNode.getColor())) {
-        acc.push(cellNode);
-        coordAcc.push(nearestCells[i]);
-        this.collectNearestEqualCells(cellNode, nearestCells[i], acc, coordAcc);
-      }
-    }
-  }
-
   private putDownCells() {
     for (let x = 0; x < MAP_WIDTH; x += 1) {
       const listOfCells = [];
@@ -294,14 +235,14 @@ export default class GameScreen extends Container {
       for (let y = MAP_HEIGHT - 1; y >= 0; y -= 1) {
         const cell = this._map[y][x];
         if (lowestEmptyCell) {
-          if (cell !== EMPTY_CELL) {
-            listOfCells.push(this._map[y][x]);
-            this._map[y][x] = EMPTY_CELL;
+          if (cell.getType() !== CellType.empty) {
+            listOfCells.push(cell);
+            this._map[y][x] = this.prepareEmpty();
           }
-        } else if (cell === EMPTY_CELL) {
+        } else if (cell.getType() === CellType.empty) {
           lowestEmptyCell = { x, y };
         }
-        if (cell === EMPTY_CELL) {
+        if (cell.getType() === CellType.empty) {
           amountOfEmptyCells += 1;
         }
       }
@@ -319,6 +260,7 @@ export default class GameScreen extends Container {
             x: calcX(lowestX),
             y: calcY(lowestY - i),
           };
+          this._bufferOfCells.push(this._map[lowestY - i][lowestX]);
           this._map[lowestY - i][lowestX] = cell;
           new TWEEN.Tween(source)
             .to(destination, 800)
@@ -348,6 +290,7 @@ export default class GameScreen extends Container {
             cell.alpha = 0;
             cell.position.set(source.x, source.y);
             cell.renderable = true;
+            this._bufferOfCells.push(this._map[i][x]);
             this._map[i][x] = cell;
             new TWEEN.Tween(source)
               .to(destination, 800)
@@ -377,7 +320,7 @@ export default class GameScreen extends Container {
     this._progressBar.update(ratio);
   }
 
-  private getCell(pos: Coordinate) {
+  private getCell(pos: Point) {
     return this._map[pos.y][pos.x];
   }
 
@@ -420,7 +363,7 @@ export default class GameScreen extends Container {
           this.determineCellType(cell, color);
           cell.renderable = true;
           const mapCell = this._map[y][x];
-          if (mapCell !== EMPTY_CELL) {
+          if (mapCell.getType() !== CellType.empty) {
             mapCell.renderable = false;
             mapCell.position.x = -mapCell.width - 1;
             this._bufferOfCells.push(mapCell);
@@ -464,6 +407,18 @@ export default class GameScreen extends Container {
     }
   }
 
+  private prepareEmpty() {
+    let cell = this._bufferOfCells.pop();
+    if (!cell) {
+      cell = new CellSprite(Texture.EMPTY);
+    } else {
+      cell.setTexture(Texture.EMPTY);
+    }
+    cell.renderable = false;
+    cell.setType(CellType.empty);
+    return cell;
+  }
+
   private initResultText() {
     this._resultText = new Text('', { ...TEXT_STYLE, fontSize: 36 });
     this._resultText.anchor.set(0.5, 1);
@@ -473,7 +428,7 @@ export default class GameScreen extends Container {
   }
 
   private initCells() {
-    this._map = Array(MAP_HEIGHT).fill(null).map(() => Array(MAP_WIDTH).fill(EMPTY_CELL));
+    this._map = Array(MAP_HEIGHT).fill(null).map(() => Array(MAP_WIDTH).fill(null).map(() => this.prepareEmpty()));
     for (let i = 0; i < MAP_WIDTH * MAP_HEIGHT * 2; i += 1) {
       const colorType = this._colorIterator.next().value;
       const resName = mapColorToResource(colorType);
