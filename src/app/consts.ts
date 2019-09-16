@@ -9,12 +9,14 @@ export const TILE_HEIGHT = 40;
 export const EXPLOSION_RADIUS = 2;
 export const BOMB_APPEARANCE_CHANCE = 0.05;
 export const MIN_EQUAL_CELLS = 2;
-export const COLORS = [
-  CellType.blue,
-  CellType.green,
-  CellType.purple,
-  CellType.red,
-  CellType.yellow,
+// amount is a term that applies to the whole amount of cells in a distribution function
+export const CELLS_DISTRIBUTION = [
+  { cellType: CellType.blue, amount: 0.19 },
+  { cellType: CellType.green, amount: 0.19 },
+  { cellType: CellType.purple, amount: 0.19 },
+  { cellType: CellType.red, amount: 0.19 },
+  { cellType: CellType.yellow, amount: 0.19 },
+  { cellType: CellType.bomb, amount: 0.05 },
 ];
 export const GAME_FIELD_WIDTH = TILE_WIDTH * MAP_WIDTH;
 export const GAME_FIELD_HEIGHT = TILE_HEIGHT * MAP_HEIGHT;

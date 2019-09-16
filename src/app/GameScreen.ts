@@ -8,7 +8,10 @@ import {
 import shuffle from 'lodash.shuffle';
 import TWEEN from '@tweenjs/tween.js';
 
-import CellSprite from './CellSprite';
+import {
+  CellBombSprite,
+  CellSprite,
+} from './cells';
 import Button from './Button';
 import ProgressBar from './ProgressBar';
 import {
@@ -16,8 +19,7 @@ import {
   collectEqualCells,
 } from './strategies';
 import {
-  // BOMB_APPEARANCE_CHANCE,
-  COLORS,
+  CELLS_DISTRIBUTION,
   EXPLOSION_RADIUS,
   GAME_FIELD_HEIGHT,
   GAME_FIELD_WIDTH,
@@ -32,7 +34,10 @@ import {
   TILE_OFFSET_Y,
   TILE_WIDTH,
 } from './consts';
-import { CellType } from './types';
+import {
+  CellsDistribution,
+  CellType,
+} from './types';
 
 export interface Resources {
   [key: string]: Texture;
@@ -46,19 +51,20 @@ function calcY(yPositionOnMap: number) {
   return yPositionOnMap * TILE_HEIGHT + TILE_OFFSET_Y;
 }
 
-function *makeColorGenerator<T>(colors: T[], bufferSize: number) {
-  let buffer = [];
-  const amountOfColors = colors.length;
-  const alignedBufferSize = amountOfColors * Math.ceil(bufferSize / amountOfColors);
-  for (let i = 0; i < alignedBufferSize; i += 1) {
-    buffer.push(colors[i % amountOfColors]);
+function *makeColorGenerator(distributions: CellsDistribution[], expectedBufferSize: number) {
+  let buffer: CellType[] = [];
+  for (const distr of distributions) {
+    buffer = buffer.concat(
+      Array(distr.amount * expectedBufferSize).fill(distr.cellType),
+    );
   }
   buffer = shuffle(buffer);
+  const bufferSize = buffer.length;
   let j = 0;
   while (true) {
     yield buffer[j];
     j += 1;
-    if (j >= alignedBufferSize) {
+    if (j >= bufferSize) {
       buffer = shuffle(buffer);
       j = 0;
     }
@@ -102,7 +108,7 @@ export default class GameScreen extends Container {
     this._resources = resources;
     this._maxMoves = 30;
     this._targetScore = 100;
-    this._cellsGenerator = makeColorGenerator(COLORS, MAP_WIDTH * MAP_HEIGHT * 3);
+    this._cellsGenerator = makeColorGenerator(CELLS_DISTRIBUTION, MAP_WIDTH * MAP_HEIGHT * 3);
 
     const restartButton = new Button({
       x: TILE_OFFSET_X + GAME_FIELD_WIDTH,
@@ -388,7 +394,11 @@ export default class GameScreen extends Container {
       cell = array.pop();
     }
     if (!cell) {
-      cell = new CellSprite(mapCellTypeToTexture(cellType, this._resources), cellType);
+      if (cellType === CellType.bomb) {
+        cell = new CellBombSprite(mapCellTypeToTexture(CellType.blue, this._resources));
+      } else {
+        cell = new CellSprite(mapCellTypeToTexture(cellType, this._resources), cellType);
+      }
     }
     cell.renderable = false;
     return cell;

@@ -13,3 +13,8 @@ export enum CellType {
 export interface CellSpriteType extends Sprite {
   getType: () => CellType;
 }
+
+export interface CellsDistribution {
+  cellType: CellType;
+  amount: number;
+}
