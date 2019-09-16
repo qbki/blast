@@ -28,7 +28,7 @@ function collectNearestEqualCells<T extends CellSpriteType>(
     if (acc.includes(cellNode)) {
       continue;
     }
-    if (centralCell.isColor(cellNode.getColor())) {
+    if (centralCell.getType() === cellNode.getType()) {
       acc.push(cellNode);
       coordAcc.push(nearestCells[i]);
       collectNearestEqualCells(map, cellNode, nearestCells[i], acc, coordAcc);

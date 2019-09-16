@@ -1,10 +1,10 @@
 import {
-  filters,
+  // filters,
   Point,
   Sprite,
   Texture,
 } from 'pixi.js-legacy';
-import TWEEN from '@tweenjs/tween.js';
+// import TWEEN from '@tweenjs/tween.js';
 
 import {
   TILE_HEIGHT,
@@ -12,7 +12,7 @@ import {
   TILE_OFFSET_Y,
   TILE_WIDTH,
 } from './consts';
-import { CellColor, CellType } from './types';
+import { CellType } from './types';
 
 export default class CellSprite extends Sprite {
   public static coordToCellPos(coord: Point) {
@@ -22,15 +22,13 @@ export default class CellSprite extends Sprite {
     );
   }
 
-  private _color: CellColor;
   private _cellType: CellType;
-  private _tween: TWEEN.Tween | null = null;
+  // private _tween: TWEEN.Tween | null = null;
 
-  constructor(texture: Texture) {
+  constructor(texture: Texture, cellType: CellType = CellType.blue) {
     super(texture);
     this.scale.set(0.233, 0.233);
-    this._color = CellColor.none;
-    this._cellType = CellType.regular;
+    this._cellType = cellType;
   }
 
   public placeOnMap(x: number, y: number) {
@@ -40,38 +38,30 @@ export default class CellSprite extends Sprite {
     );
   }
 
-  public setColor(color: CellColor) {
-    this._color = color;
-  }
-
-  public getColor() {
-    return this._color;
-  }
-
-  public setType(cellType: CellType) {
-    if (cellType !== this._cellType) {
-      this._cellType = cellType;
-      if (this._cellType === CellType.bomb) {
-        const colorMatrix = new filters.ColorMatrixFilter();
-        colorMatrix.greyscale(0.2, true);
-        this.filters = [colorMatrix];
-        this._tween = new TWEEN.Tween({ alpha: 0.7 })
-          .to({ alpha: 1 }, 1000)
-          .easing(TWEEN.Easing.Linear.None)
-          .onUpdate(({ alpha }) => this.alpha = alpha)
-          .yoyo(true)
-          .repeat(Infinity)
-          .start();
-      } else {
-        this.alpha = 1;
-        this.filters = [];
-        if (this._tween) {
-          this._tween.stop();
-          this._tween = null;
-        }
-      }
-    }
-  }
+  // public setType(cellType: CellType) {
+    // if (cellType !== this._cellType) {
+      // this._cellType = cellType;
+      // if (this._cellType === CellType.bomb) {
+        // const colorMatrix = new filters.ColorMatrixFilter();
+        // colorMatrix.greyscale(0.2, true);
+        // this.filters = [colorMatrix];
+        // this._tween = new TWEEN.Tween({ alpha: 0.7 })
+          // .to({ alpha: 1 }, 1000)
+          // .easing(TWEEN.Easing.Linear.None)
+          // .onUpdate(({ alpha }) => this.alpha = alpha)
+          // .yoyo(true)
+          // .repeat(Infinity)
+          // .start();
+      // } else {
+        // this.alpha = 1;
+        // this.filters = [];
+        // if (this._tween) {
+          // this._tween.stop();
+          // this._tween = null;
+        // }
+      // }
+    // }
+  // }
 
   public getType() {
     return this._cellType;
@@ -83,13 +73,5 @@ export default class CellSprite extends Sprite {
 
   public tilePos() {
     return CellSprite.coordToCellPos(this.position);
-  }
-
-  public isColor(color: CellColor) {
-    return this._color === color;
-  }
-
-  public isNotColor(color: CellColor) {
-    return !this.isColor(color);
   }
 }

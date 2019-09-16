@@ -1,7 +1,8 @@
 import { Sprite } from 'pixi.js-legacy';
 
-export enum CellColor {
-  none,
+export enum CellType {
+  empty,
+  bomb,
   blue,
   green,
   purple,
@@ -9,14 +10,6 @@ export enum CellColor {
   yellow,
 }
 
-export enum CellType {
-  empty,
-  regular,
-  bomb,
-}
-
 export interface CellSpriteType extends Sprite {
-  isColor: (color: CellColor) => boolean;
-  getColor: () => CellColor;
   getType: () => CellType;
 }
