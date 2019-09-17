@@ -5,11 +5,9 @@ import {
 import { CellSprite } from './CellSprite';
 import TWEEN from '@tweenjs/tween.js';
 
-import { CellType } from '../types';
-
 export class CellBombSprite extends CellSprite {
-  constructor(texture: Texture) {
-    super(texture, CellType.bomb);
+  constructor(texture: Texture, groupName: string) {
+    super(texture, groupName);
     const colorMatrix = new filters.ColorMatrixFilter();
     colorMatrix.greyscale(0.2, true);
     this.filters = [colorMatrix];

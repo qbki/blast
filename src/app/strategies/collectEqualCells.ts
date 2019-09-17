@@ -1,5 +1,5 @@
 import { Point } from 'pixi.js-legacy';
-import { CellSpriteType, CellType } from '../types';
+import { CellSpriteType } from '../types';
 
 function collectNearestEqualCells<T extends CellSpriteType>(
   map: T[][],
@@ -28,7 +28,7 @@ function collectNearestEqualCells<T extends CellSpriteType>(
     if (acc.includes(cellNode)) {
       continue;
     }
-    if (centralCell.getType() === cellNode.getType()) {
+    if (centralCell.getGroupName() === cellNode.getGroupName()) {
       acc.push(cellNode);
       coordAcc.push(nearestCells[i]);
       collectNearestEqualCells(map, cellNode, nearestCells[i], acc, coordAcc);
@@ -40,7 +40,7 @@ export function collectEqualCells<T extends CellSpriteType>(map: T[][], pos: Poi
   const initialCell = map[pos.y][pos.x];
   const cellsAcc: T[] = [];
   const coordAcc: Point[] = [];
-  if (initialCell.getType() !== CellType.empty) {
+  if (initialCell.isNotEmpty()) {
     collectNearestEqualCells(map, initialCell, pos, cellsAcc, coordAcc);
   }
   if (cellsAcc.length >= min) {

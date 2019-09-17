@@ -2,19 +2,28 @@ import { Sprite } from 'pixi.js-legacy';
 
 export enum CellType {
   empty,
+  regular,
   bomb,
-  blue,
-  green,
-  purple,
-  red,
-  yellow,
+}
+
+export enum Strategy {
+  equals,
+  explosion,
 }
 
 export interface CellSpriteType extends Sprite {
-  getType: () => CellType;
+  getGroupName: () => string;
+  isEmpty: () => boolean;
+  isNotEmpty: () => boolean;
 }
 
-export interface CellsDistribution {
-  cellType: CellType;
+export interface CellConfigNode {
   amount: number;
+  texture: string;
+  strategy: Strategy;
+  cellType: CellType;
+}
+
+export interface CellsConfig {
+  [key: string]: CellConfigNode;
 }

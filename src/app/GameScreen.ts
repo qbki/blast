@@ -10,6 +10,7 @@ import TWEEN from '@tweenjs/tween.js';
 
 import {
   CellBombSprite,
+  CellEmptySprite,
   CellSprite,
 } from './cells';
 import Button from './Button';
@@ -19,7 +20,6 @@ import {
   collectEqualCells,
 } from './strategies';
 import {
-  CELLS_DISTRIBUTION,
   EXPLOSION_RADIUS,
   GAME_FIELD_HEIGHT,
   GAME_FIELD_WIDTH,
@@ -34,10 +34,14 @@ import {
   TILE_OFFSET_Y,
   TILE_WIDTH,
 } from './consts';
+import { CELLS_CONFIG } from './config';
 import {
-  CellsDistribution,
+  CellsConfig,
   CellType,
+  Strategy,
 } from './types';
+
+const EMPTY_GROUP_NAME = '';
 
 export interface Resources {
   [key: string]: Texture;
@@ -51,11 +55,22 @@ function calcY(yPositionOnMap: number) {
   return yPositionOnMap * TILE_HEIGHT + TILE_OFFSET_Y;
 }
 
-function *makeColorGenerator(distributions: CellsDistribution[], expectedBufferSize: number) {
+function coordToCellPos(coord: Point) {
+  return new Point(
+    Math.floor((coord.x - TILE_OFFSET_X) / TILE_WIDTH),
+    Math.floor((coord.y - TILE_OFFSET_Y) / TILE_HEIGHT),
+  );
+}
+
+function placeOnMap(cell: CellSprite, pos: Point) {
+  cell.position.set(calcX(pos.x), calcY(pos.y));
+}
+
+function *makeColorGenerator(distributions: CellsConfig, expectedBufferSize: number) {
   let buffer: CellType[] = [];
-  for (const distr of distributions) {
+  for (const [typeName, { amount }] of Object.entries(distributions)) {
     buffer = buffer.concat(
-      Array(distr.amount * expectedBufferSize).fill(distr.cellType),
+      Array(amount * expectedBufferSize).fill(typeName),
     );
   }
   buffer = shuffle(buffer);
@@ -71,22 +86,10 @@ function *makeColorGenerator(distributions: CellsDistribution[], expectedBufferS
   }
 }
 
-function mapCellTypeToTexture(cellType: CellType, res: Resources) {
-  switch (cellType) {
-    case CellType.bomb: return res.block_blue;
-    case CellType.blue: return res.block_blue;
-    case CellType.green: return res.block_green;
-    case CellType.purple: return res.block_purple;
-    case CellType.red: return res.block_red;
-    case CellType.yellow: return res.block_yellow;
-    default: return Texture.EMPTY;
-  }
-}
-
 export default class GameScreen extends Container {
   private TEXT_OFFSET = 10;
   private _map: CellSprite[][] = [];
-  private _bufferOfCells: Map<CellType, CellSprite[]> = new Map();
+  private _bufferOfCells: {[key: string]: CellSprite[]} = {};
   private _bufferOfScoreTexts: Text[] = [];
   private _moveLayer: Container;
   private _cellsLayer: Container;
@@ -101,14 +104,14 @@ export default class GameScreen extends Container {
   private _maxMoves: number;
   private _score: number = 0;
   private _moves: number = 0;
-  private _strategies: Map<CellType, (position: Point) => [CellSprite[], Point[]]>;
+  private _strategies: {[key: string]: (position: Point) => [CellSprite[], Point[]]};
 
   constructor(resources: Resources) {
     super();
     this._resources = resources;
     this._maxMoves = 30;
     this._targetScore = 100;
-    this._cellsGenerator = makeColorGenerator(CELLS_DISTRIBUTION, MAP_WIDTH * MAP_HEIGHT * 3);
+    this._cellsGenerator = makeColorGenerator(CELLS_CONFIG, MAP_WIDTH * MAP_HEIGHT * 3);
 
     const restartButton = new Button({
       x: TILE_OFFSET_X + GAME_FIELD_WIDTH,
@@ -157,15 +160,19 @@ export default class GameScreen extends Container {
       this._scoreContainer.addChild(text);
     }
 
-    this._strategies = new Map();
-    const strategyEquals = (position: Point) => collectEqualCells(this._map, position, MIN_EQUAL_CELLS);
-    const strategyExplosion = (position: Point) => collectCellsInRadius(this._map, position, EXPLOSION_RADIUS);
-    this._strategies.set(CellType.bomb, strategyExplosion);
-    this._strategies.set(CellType.blue, strategyEquals);
-    this._strategies.set(CellType.green, strategyEquals);
-    this._strategies.set(CellType.purple, strategyEquals);
-    this._strategies.set(CellType.red, strategyEquals);
-    this._strategies.set(CellType.yellow, strategyEquals);
+    this._strategies = {};
+    const strategiesMapping = new Map();
+    strategiesMapping.set(
+      Strategy.equals,
+      (position: Point) => collectEqualCells(this._map, position, MIN_EQUAL_CELLS),
+    );
+    strategiesMapping.set(
+      Strategy.explosion,
+      (position: Point) => collectCellsInRadius(this._map, position, EXPLOSION_RADIUS),
+    );
+    for (const [typeName, { strategy } ]of Object.entries(CELLS_CONFIG)) {
+      this._strategies[typeName] = strategiesMapping.get(strategy);
+    }
   }
 
   public restart() {
@@ -173,9 +180,9 @@ export default class GameScreen extends Container {
   }
 
   private onPointerDown = (event: interaction.InteractionEvent) => {
-    const initialCellPos = CellSprite.coordToCellPos(event.data.getLocalPosition(this));
+    const initialCellPos = coordToCellPos(event.data.getLocalPosition(this));
     const initialCell = this.getCell(initialCellPos);
-    const execStragegy = this._strategies.get(initialCell.getType());
+    const execStragegy = this._strategies[initialCell.getGroupName()];
     if (!execStragegy) {
       return;
     }
@@ -198,7 +205,7 @@ export default class GameScreen extends Container {
       if (!cell) {
         continue;
       }
-      this._map[coord.y][coord.x] = this.prepareCell(CellType.empty);
+      this._map[coord.y][coord.x] = this.prepareCell(EMPTY_GROUP_NAME);
       const source = {
         x: cell.position.x,
         y: cell.position.y,
@@ -240,14 +247,14 @@ export default class GameScreen extends Container {
       for (let y = MAP_HEIGHT - 1; y >= 0; y -= 1) {
         const cell = this._map[y][x];
         if (lowestEmptyCell) {
-          if (cell.getType() !== CellType.empty) {
+          if (cell.isNotEmpty()) {
             listOfCells.push(cell);
-            this._map[y][x] = this.prepareCell(CellType.empty);
+            this._map[y][x] = this.prepareCell(EMPTY_GROUP_NAME);
           }
-        } else if (cell.getType() === CellType.empty) {
+        } else if (cell.isEmpty()) {
           lowestEmptyCell = { x, y };
         }
-        if (cell.getType() === CellType.empty) {
+        if (cell.isEmpty()) {
           amountOfEmptyCells += 1;
         }
       }
@@ -341,10 +348,10 @@ export default class GameScreen extends Container {
       for (let x = 0; x < MAP_WIDTH; x += 1) {
         const cellType = this._cellsGenerator.next().value;
         const cell = this.prepareCell(cellType);
-        cell.placeOnMap(x, y);
+        placeOnMap(cell, new Point(x, y));
         cell.renderable = true;
         const mapCell = this._map[y][x];
-        if (mapCell.getType() !== CellType.empty) {
+        if (mapCell.isNotEmpty()) {
           mapCell.renderable = false;
           mapCell.position.x = -mapCell.width - 1;
           this.pushToBuffer(mapCell);
@@ -387,17 +394,29 @@ export default class GameScreen extends Container {
     }
   }
 
-  private prepareCell(cellType: CellType) {
-    const array = this._bufferOfCells.get(cellType);
+  private prepareCell(groupName: string) {
+    const array = this._bufferOfCells[groupName];
     let cell;
     if (array && array.length) {
       cell = array.pop();
     }
     if (!cell) {
-      if (cellType === CellType.bomb) {
-        cell = new CellBombSprite(mapCellTypeToTexture(CellType.blue, this._resources));
+      const config = CELLS_CONFIG[groupName];
+      if (config) {
+        const { cellType, texture } = config;
+        switch (cellType) {
+          case CellType.regular:
+            cell = new CellSprite(this._resources[texture], groupName);
+            break;
+          case CellType.bomb:
+            cell = new CellBombSprite(this._resources[texture], groupName);
+            break;
+          default:
+            cell = new CellEmptySprite();
+            break;
+        }
       } else {
-        cell = new CellSprite(mapCellTypeToTexture(cellType, this._resources), cellType);
+        cell = new CellEmptySprite();
       }
     }
     cell.renderable = false;
@@ -405,7 +424,7 @@ export default class GameScreen extends Container {
   }
 
   private pushToBuffer(cell: CellSprite) {
-    const array = this._bufferOfCells.get(cell.getType());
+    const array = this._bufferOfCells[cell.getGroupName()];
     if (array) {
       array.push(cell);
     }
@@ -421,7 +440,7 @@ export default class GameScreen extends Container {
 
   private initCells() {
     this._map = Array(MAP_HEIGHT).fill(null).map(
-      () => Array(MAP_WIDTH).fill(null).map(() => this.prepareCell(CellType.empty)),
+      () => Array(MAP_WIDTH).fill(null).map(() => this.prepareCell('')),
     );
     this.placeCellsOnMap();
   }
