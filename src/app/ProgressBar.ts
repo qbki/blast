@@ -24,20 +24,20 @@ export default class ProgressBar extends Container {
 
     const bg = new Graphics();
     bg.beginTextureFill({
-        texture: bgTexture,
-        color: 0xffffff,
-        alpha: 1,
-        matrix: scale
+      texture: bgTexture,
+      color: 0xffffff,
+      alpha: 1,
+      matrix: scale
     });
     bg.drawRoundedRect(0, 0, width, Self.HEIGHT, Self.ROUND);
     bg.endFill();
 
     const mask = new Graphics();
     mask.beginTextureFill({
-        texture: bgTexture,
-        color: 0xffffff,
-        alpha: 1,
-        matrix: scale
+      texture: bgTexture,
+      color: 0xffffff,
+      alpha: 1,
+      matrix: scale
     });
     mask.drawRoundedRect(0, 0, width, Self.HEIGHT, Self.ROUND);
     mask.endFill();

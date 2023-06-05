@@ -46,14 +46,14 @@ export default class Button extends Container {
   private onButtonOver = () => {
     this._text.style.fill = ['#ffffff', '#ff0099'];
     this._text.style.dropShadowDistance = 4;
-  }
+  };
 
   private onButtonOut = () => {
     this._text.style.fill = ['#ffffff', '#00ff99'];
     this._text.style.dropShadowDistance = 4;
-  }
+  };
 
   private onButtonDown = () => {
     this._text.style.dropShadowDistance = 3;
-  }
+  };
 }

@@ -29,14 +29,14 @@ export default class App {
     domRoot.appendChild(this._app.view);
     domRoot.addEventListener('contextmenu', e => e.preventDefault());
 
-    Assets.add(TEXTURES_ENUM.BAR, 'images/bar.png')
-    Assets.add(TEXTURES_ENUM.BAR_BG, 'images/bar_bg.png')
-    Assets.add(TEXTURES_ENUM.BLOCK_BLUE, 'images/blue.png')
-    Assets.add(TEXTURES_ENUM.BLOCK_GREEN, 'images/green.png')
-    Assets.add(TEXTURES_ENUM.BLOCK_PURPLE, 'images/purple.png')
-    Assets.add(TEXTURES_ENUM.BLOCK_RED, 'images/red.png')
-    Assets.add(TEXTURES_ENUM.BLOCK_YELLOW, 'images/yellow.png')
-    Assets.add(TEXTURES_ENUM.BLOCK_BOMB, 'images/bomb.png')
+    Assets.add(TEXTURES_ENUM.BAR, 'images/bar.png');
+    Assets.add(TEXTURES_ENUM.BAR_BG, 'images/bar_bg.png');
+    Assets.add(TEXTURES_ENUM.BLOCK_BLUE, 'images/blue.png');
+    Assets.add(TEXTURES_ENUM.BLOCK_GREEN, 'images/green.png');
+    Assets.add(TEXTURES_ENUM.BLOCK_PURPLE, 'images/purple.png');
+    Assets.add(TEXTURES_ENUM.BLOCK_RED, 'images/red.png');
+    Assets.add(TEXTURES_ENUM.BLOCK_YELLOW, 'images/yellow.png');
+    Assets.add(TEXTURES_ENUM.BLOCK_BOMB, 'images/bomb.png');
     Assets.load(Object.values(TEXTURES_ENUM)).then(this.onLoadResources);
   }
 
@@ -44,9 +44,9 @@ export default class App {
     this._app.ticker.autoStart = false;
     this._app.ticker.stop();
     const animate = (time: number) => {
-        requestAnimationFrame(animate);
-        this._app.ticker.update(time);
-        TWEEN.update(time);
+      requestAnimationFrame(animate);
+      this._app.ticker.update(time);
+      TWEEN.update(time);
     };
     animate(performance.now());
   }
@@ -88,5 +88,5 @@ export default class App {
       gameScreen.interactiveChildren = true;
     });
     this._app.stage.addChild(menuScreen);
-  }
+  };
 }

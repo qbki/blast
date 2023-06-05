@@ -98,12 +98,12 @@ export default class GameScreen extends Container {
   private _resultText!: Text;
   private _scoreText!: Text;
   private _movesText!: Text;
-  private _cellsGenerator: Iterator<any>;
+  private _cellsGenerator: Iterator<CellType | undefined>;
   private _resources: Resources;
   private _targetScore: number;
   private _maxMoves: number;
-  private _score: number = 0;
-  private _moves: number = 0;
+  private _score = 0;
+  private _moves = 0;
   private _strategies: {[key: string]: (position: Point) => [CellSprite[], Point[]]};
 
   constructor(resources: Resources) {
@@ -171,7 +171,7 @@ export default class GameScreen extends Container {
       Strategy.explosion,
       (position: Point) => collectCellsInRadius(this._map, position, EXPLOSION_RADIUS),
     );
-    for (const [typeName, { strategy } ]of Object.entries(CELLS_CONFIG)) {
+    for (const [typeName, { strategy }] of Object.entries(CELLS_CONFIG)) {
       this._strategies[typeName] = strategiesMapping.get(strategy);
     }
   }
@@ -238,7 +238,7 @@ export default class GameScreen extends Container {
     this.updateProgressBar();
     this.updateMoves(this._moves - 1);
     this.checkWinningConditions();
-  }
+  };
 
   private putDownCells() {
     for (let x = 0; x < MAP_WIDTH; x += 1) {
@@ -308,7 +308,7 @@ export default class GameScreen extends Container {
             cell.position.set(source.x, source.y);
             cell.renderable = true;
             this.pushToBuffer(mapCell);
-            this._map.setCell(x, i, cell)
+            this._map.setCell(x, i, cell);
             new TWEEN.Tween(source)
               .to(destination, 800)
               .easing(TWEEN.Easing.Bounce.Out)
@@ -335,7 +335,7 @@ export default class GameScreen extends Container {
   private updateProgressBar = () => {
     const ratio = this._score / this._targetScore;
     this._progressBar.update(ratio);
-  }
+  };
 
   private getCell(pos: Point) {
     return this._map.getCell(pos.x, pos.y);
@@ -414,15 +414,15 @@ export default class GameScreen extends Container {
       if (config) {
         const { cellType, texture } = config;
         switch (cellType) {
-          case CellType.regular:
-            cell = new CellSprite(this._resources[texture], groupName);
-            break;
-          case CellType.bomb:
-            cell = new CellBombSprite(this._resources[texture], groupName);
-            break;
-          default:
-            cell = new CellEmptySprite();
-            break;
+        case CellType.regular:
+          cell = new CellSprite(this._resources[texture], groupName);
+          break;
+        case CellType.bomb:
+          cell = new CellBombSprite(this._resources[texture], groupName);
+          break;
+        default:
+          cell = new CellEmptySprite();
+          break;
         }
       } else {
         cell = new CellEmptySprite();
@@ -503,5 +503,5 @@ export default class GameScreen extends Container {
     this.placeCellsOnMap();
     this._resultText.renderable = false;
     this._cellsLayer.interactive = true;
-  }
+  };
 }

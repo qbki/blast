@@ -39,4 +39,4 @@ export enum TEXTURES_ENUM {
   BLOCK_RED = 'block_red',
   BLOCK_YELLOW = 'block_yellow',
   BLOCK_BOMB = 'block_bomb',
-};
+}
