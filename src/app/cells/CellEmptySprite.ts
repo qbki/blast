@@ -1,4 +1,4 @@
-import { Texture } from 'pixi.js-legacy';
+import { Texture } from 'pixi.js';
 import { CellSprite } from './CellSprite';
 
 export class CellEmptySprite extends CellSprite {
@@ -6,7 +6,7 @@ export class CellEmptySprite extends CellSprite {
     super(texture, groupName);
   }
 
-  public isEmpty() {
+  public override isEmpty() {
     return true;
   }
 }

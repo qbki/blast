@@ -1,7 +1,4 @@
-import {
-  Sprite,
-  Texture,
-} from 'pixi.js-legacy';
+import { Sprite, Texture } from 'pixi.js';
 
 export class CellSprite extends Sprite {
   private _groupName: string;

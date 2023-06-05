@@ -1,4 +1,4 @@
-import { Container } from 'pixi.js-legacy';
+import { Container } from 'pixi.js';
 
 import Button from './Button';
 import {

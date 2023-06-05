@@ -1,4 +1,4 @@
-import { Point } from 'pixi.js-legacy';
+import { Point } from 'pixi.js';
 
 export function distance(a: Point, b: Point) {
   const x = a.x - b.x;

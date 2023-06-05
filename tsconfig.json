@@ -1,11 +1,39 @@
 {
   "compilerOptions": {
-    "target": "ESNEXT",
-    "module": "commonjs",
-    "sourceMap": true,
-    "strict": true,
+    "incremental": true,
+
+    "target": "ESNext",
+    "lib": ["DOM", "ESNext"],
+
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+
+    "allowJs": true,
+    "checkJs": true,
+    "maxNodeModuleJsDepth": 1,
+
+    "noEmit": true,
+    "downlevelIteration": false,
+    "preserveConstEnums": true,
+
+    "isolatedModules": true,
+    "allowSyntheticDefaultImports": true,
+    "allowImportingTsExtensions": true,
+    "useDefineForClassFields": true,
     "esModuleInterop": true,
-    "noUnusedLocals": true
-  },
-  "include": ["src"]
+    "forceConsistentCasingInFileNames": true,
+
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+
+    "skipDefaultLibCheck": true,
+    "skipLibCheck": true
+  }
 }

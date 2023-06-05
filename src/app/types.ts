@@ -1,4 +1,6 @@
-import { Sprite } from 'pixi.js-legacy';
+import { Sprite } from 'pixi.js';
+
+import { TEXTURES_ENUM } from './consts';
 
 export enum CellType {
   empty,
@@ -19,7 +21,7 @@ export interface CellSpriteType extends Sprite {
 
 export interface CellConfigNode {
   amount: number;
-  texture: string;
+  texture: TEXTURES_ENUM;
   strategy: Strategy;
   cellType: CellType;
 }

@@ -1,7 +1,4 @@
-import {
-  Container,
-  Text,
-} from 'pixi.js-legacy';
+import { Container, Text } from 'pixi.js';
 
 import Button from './Button';
 import {
@@ -35,7 +32,7 @@ export default class TitleScreen extends Container {
       y: SCENE_HEIGHT * 0.6,
       caption: 'Start Game',
     });
-    button.on('pointerup', () => this.emit('start'));
+    button.addEventListener('pointerup', () => this.emit('start'));
     this.addChild(button);
   }
 }

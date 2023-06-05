@@ -1,22 +1,22 @@
 import {
   Application,
-  filters,
-  Loader,
-  LoaderResource,
-} from 'pixi.js-legacy';
+  Assets,
+  BlurFilter,
+  Texture,
+} from 'pixi.js';
 import TWEEN from '@tweenjs/tween.js';
 
-import GameScreen, { Resources } from './GameScreen';
+import GameScreen from './GameScreen';
 import TitleScreen from './TitleScreen';
 import MenuScreen from './MenuScreen';
 import {
   SCENE_HEIGHT,
   SCENE_WIDTH,
+  TEXTURES_ENUM,
 } from './consts';
 
 export default class App {
-  private _app: Application;
-  private _loader: Loader;
+  private _app: Application<HTMLCanvasElement>;
 
   public constructor(domRoot: HTMLDivElement) {
     this._app = new Application({
@@ -28,16 +28,16 @@ export default class App {
     });
     domRoot.appendChild(this._app.view);
     domRoot.addEventListener('contextmenu', e => e.preventDefault());
-    this._loader = new Loader();
-    this._loader
-      .add('bar', 'images/bar.png')
-      .add('bar_bg', 'images/bar_bg.png')
-      .add('block_blue', 'images/blue.png')
-      .add('block_green', 'images/green.png')
-      .add('block_purple', 'images/purple.png')
-      .add('block_red', 'images/red.png')
-      .add('block_yellow', 'images/yellow.png')
-      .load(this.onLoadResources);
+
+    Assets.add(TEXTURES_ENUM.BAR, 'images/bar.png')
+    Assets.add(TEXTURES_ENUM.BAR_BG, 'images/bar_bg.png')
+    Assets.add(TEXTURES_ENUM.BLOCK_BLUE, 'images/blue.png')
+    Assets.add(TEXTURES_ENUM.BLOCK_GREEN, 'images/green.png')
+    Assets.add(TEXTURES_ENUM.BLOCK_PURPLE, 'images/purple.png')
+    Assets.add(TEXTURES_ENUM.BLOCK_RED, 'images/red.png')
+    Assets.add(TEXTURES_ENUM.BLOCK_YELLOW, 'images/yellow.png')
+    Assets.add(TEXTURES_ENUM.BLOCK_BOMB, 'images/bomb.png')
+    Assets.load(Object.values(TEXTURES_ENUM)).then(this.onLoadResources);
   }
 
   public run() {
@@ -51,51 +51,42 @@ export default class App {
     animate(performance.now());
   }
 
-  private onLoadResources = (_: unknown, res: Partial<Record<string, LoaderResource>>) => {
-    if (!res) {
-      window.console.error('Can\'t load resources');
-      return;
-    }
-    const game = new GameScreen(Object.keys(res).reduce(
-      (acc: Resources, name: string) => {
-        acc[name] = res[name]!.texture;
-        return acc;
-      },
-      {},
-    ));
-    const title = new TitleScreen();
-    const menu = new MenuScreen();
-    const blurFilter = new filters.BlurFilter();
+  private onLoadResources = (res: Record<TEXTURES_ENUM, Texture>) => {
+    const gameScreen = new GameScreen(res);
+    const titleScreen = new TitleScreen();
+    const menuScreen = new MenuScreen();
 
-    title.visible = true;
-    title.on('start', () => {
-      title.visible = false;
-      game.visible = true;
-    });
-    this._app.stage.addChild(title);
+    const blurFilter = new BlurFilter();
 
-    game.visible = false;
-    game.on('menu', () => {
-      game.interactiveChildren = false;
-      game.filters = [blurFilter];
-      menu.visible = true;
+    titleScreen.visible = true;
+    titleScreen.on('start', () => {
+      titleScreen.visible = false;
+      gameScreen.visible = true;
     });
-    this._app.stage.addChild(game);
+    this._app.stage.addChild(titleScreen);
 
-    menu.visible = false;
-    menu.on('tomenu', () => {
-      game.filters = [];
-      menu.visible = false;
-      game.visible = false;
-      game.restart();
-      game.interactiveChildren = true;
-      title.visible = true;
+    gameScreen.visible = false;
+    gameScreen.on('menu', () => {
+      gameScreen.interactiveChildren = false;
+      gameScreen.filters = [blurFilter];
+      menuScreen.visible = true;
     });
-    menu.on('resume', () => {
-      game.filters = [];
-      menu.visible = false;
-      game.interactiveChildren = true;
+    this._app.stage.addChild(gameScreen);
+
+    menuScreen.visible = false;
+    menuScreen.on('tomenu', () => {
+      gameScreen.filters = [];
+      menuScreen.visible = false;
+      gameScreen.visible = false;
+      gameScreen.restart();
+      gameScreen.interactiveChildren = true;
+      titleScreen.visible = true;
     });
-    this._app.stage.addChild(menu);
+    menuScreen.on('resume', () => {
+      gameScreen.filters = [];
+      menuScreen.visible = false;
+      gameScreen.interactiveChildren = true;
+    });
+    this._app.stage.addChild(menuScreen);
   }
 }

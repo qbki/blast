@@ -1,43 +1,26 @@
 {
   "name": "blast",
   "version": "0.0.1",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "main": "src/index.js",
+  "type": "module",
   "scripts": {
-    "build": "rm -rf ./dist && webpack -p",
-    "start": "npx webpack-dev-server -d --hot --inline --host 0.0.0.0"
+    "dev": "vite serve ./src --config ./vite.config.ts",
+    "build": "vite build ./src --config ./vite.config.ts",
+    "watch-type-errors": "tsc --noEmit --watch"
   },
   "browserslist": [
-    "last 2 version",
-    "ie 11"
+    "last 2 version"
   ],
   "devDependencies": {
-    "@babel/cli": "^7.5.5",
-    "@babel/core": "^7.5.5",
-    "@babel/plugin-proposal-class-properties": "^7.5.5",
-    "@babel/plugin-proposal-numeric-separator": "^7.2.0",
-    "@babel/plugin-proposal-object-rest-spread": "^7.5.5",
-    "@babel/plugin-transform-runtime": "^7.6.0",
-    "@babel/preset-env": "^7.5.5",
-    "@babel/preset-typescript": "^7.3.3",
-    "@babel/runtime": "^7.6.0",
-    "@types/classnames": "^2.2.7",
     "@types/lodash.shuffle": "^4.2.6",
-    "@types/tween.js": "^17.2.0",
-    "babel-loader": "^8.0.6",
-    "copy-webpack-plugin": "^5.0.4",
-    "html-webpack-plugin": "^3.2.0",
-    "ts-loader": "^6.0.4",
-    "typescript": "^3.5.1",
-    "webpack": "^4.38.0",
-    "webpack-cli": "^3.3.6",
-    "webpack-dev-server": "^3.7.2"
+    "typescript": "^5.1.3",
+    "vite": "^4.3.9"
   },
   "dependencies": {
-    "@tweenjs/tween.js": "^18.3.1",
-    "classnames": "^2.2.6",
-    "core-js": "^3.1.4",
+    "@tweenjs/tween.js": "^20.0.3",
+    "classnames": "^2.3.2",
     "lodash.shuffle": "^4.2.0",
-    "pixi.js-legacy": "^5.1.0"
+    "pixi.js": "^7.2.4"
   }
 }

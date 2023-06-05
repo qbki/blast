@@ -1,15 +1,13 @@
-import {
-  filters,
-  Texture,
-} from 'pixi.js-legacy';
-import { CellSprite } from './CellSprite';
+import { ColorMatrixFilter, Texture } from 'pixi.js';
 import TWEEN from '@tweenjs/tween.js';
+
+import { CellSprite } from './CellSprite';
 
 export class CellBombSprite extends CellSprite {
   constructor(texture: Texture, groupName: string) {
     super(texture, groupName);
-    const colorMatrix = new filters.ColorMatrixFilter();
-    colorMatrix.greyscale(0.2, true);
+    const colorMatrix = new ColorMatrixFilter();
+    colorMatrix.greyscale(0.1, true);
     this.filters = [colorMatrix];
     new TWEEN.Tween({ alpha: 0.7 })
       .to({ alpha: 1 }, 1000)

@@ -1,4 +1,3 @@
-import 'core-js';
 import App from './app/App';
 
 window.addEventListener('DOMContentLoaded', () => {

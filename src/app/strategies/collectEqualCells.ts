@@ -1,8 +1,8 @@
-import { Point } from 'pixi.js-legacy';
+import { Point } from 'pixi.js';
 import { CellSpriteType } from '../types';
 
 function collectNearestEqualCells<T extends CellSpriteType>(
-  map: T[][],
+  map: GameMap<T>,
   centralCell: T,
   pos: Point,
   acc: T[],
@@ -16,28 +16,28 @@ function collectNearestEqualCells<T extends CellSpriteType>(
     new Point(tileX - 1, tileY),
     new Point(tileX + 1, tileY),
   ];
-  const nearestCellsAmount = nearestCells.length;
-  const mapWidth = map[0].length;
-  const mapHeight = map.length;
-  for (let i = 0; i < nearestCellsAmount; i += 1) {
-    const { x, y } = nearestCells[i];
-    if (x < 0 || y < 0 || x >= mapWidth || y >= mapHeight) {
+  for (const nearestCell of nearestCells) {
+    const { x, y } = nearestCell;
+    if (x < 0 || y < 0 || x >= map.getWidth() || y >= map.getHeight()) {
       continue;
     }
-    const cellNode = map[y][x];
-    if (acc.includes(cellNode)) {
+    const cellNode = map.getCell(x, y);
+    if (!cellNode || acc.includes(cellNode)) {
       continue;
     }
     if (centralCell.getGroupName() === cellNode.getGroupName()) {
       acc.push(cellNode);
-      coordAcc.push(nearestCells[i]);
-      collectNearestEqualCells(map, cellNode, nearestCells[i], acc, coordAcc);
+      coordAcc.push(nearestCell);
+      collectNearestEqualCells(map, cellNode, nearestCell, acc, coordAcc);
     }
   }
 }
 
-export function collectEqualCells<T extends CellSpriteType>(map: T[][], pos: Point, min: number): [T[], Point[]] {
-  const initialCell = map[pos.y][pos.x];
+export function collectEqualCells<T extends CellSpriteType>(map: GameMap<T>, pos: Point, min: number): [T[], Point[]] {
+  const initialCell = map.getCell(pos.x, pos.y);
+  if (initialCell === undefined) {
+    return [[], []];
+  }
   const cellsAcc: T[] = [];
   const coordAcc: Point[] = [];
   if (initialCell.isNotEmpty()) {

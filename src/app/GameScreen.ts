@@ -1,10 +1,10 @@
 import {
   Container,
-  interaction,
+  FederatedPointerEvent,
   Point,
   Text,
   Texture,
-} from 'pixi.js-legacy';
+} from 'pixi.js';
 import shuffle from 'lodash.shuffle';
 import TWEEN from '@tweenjs/tween.js';
 
@@ -19,6 +19,7 @@ import {
   collectCellsInRadius,
   collectEqualCells,
 } from './strategies';
+import { GameMap } from './GameMap';
 import {
   EXPLOSION_RADIUS,
   GAME_FIELD_HEIGHT,
@@ -28,6 +29,7 @@ import {
   MIN_EQUAL_CELLS,
   SCENE_HEIGHT,
   SCENE_WIDTH,
+  TEXTURES_ENUM,
   TEXT_STYLE,
   TILE_HEIGHT,
   TILE_OFFSET_X,
@@ -43,9 +45,7 @@ import {
 
 const EMPTY_GROUP_NAME = '';
 
-export interface Resources {
-  [key: string]: Texture;
-}
+export type Resources = Record<TEXTURES_ENUM, Texture>;
 
 function calcX(xPositionOnMap: number) {
   return xPositionOnMap * TILE_WIDTH + TILE_OFFSET_X;
@@ -88,7 +88,7 @@ function *makeColorGenerator(distributions: CellsConfig, expectedBufferSize: num
 
 export default class GameScreen extends Container {
   private TEXT_OFFSET = 10;
-  private _map: CellSprite[][] = [];
+  private _map: GameMap<CellSprite>;
   private _bufferOfCells: {[key: string]: CellSprite[]} = {};
   private _bufferOfScoreTexts: Text[] = [];
   private _moveLayer: Container;
@@ -109,6 +109,7 @@ export default class GameScreen extends Container {
   constructor(resources: Resources) {
     super();
     this._resources = resources;
+    this._map = new GameMap(MAP_WIDTH, MAP_HEIGHT, () => this.prepareCell(''));
     this._maxMoves = 30;
     this._targetScore = 100;
     this._cellsGenerator = makeColorGenerator(CELLS_CONFIG, MAP_WIDTH * MAP_HEIGHT * 3);
@@ -179,9 +180,12 @@ export default class GameScreen extends Container {
     this.handleRestart();
   }
 
-  private onPointerDown = (event: interaction.InteractionEvent) => {
-    const initialCellPos = coordToCellPos(event.data.getLocalPosition(this));
+  private onPointerDown = (event: FederatedPointerEvent) => {
+    const initialCellPos = coordToCellPos(event.getLocalPosition(this));
     const initialCell = this.getCell(initialCellPos);
+    if (!initialCell) {
+      return;
+    }
     const execStragegy = this._strategies[initialCell.getGroupName()];
     if (!execStragegy) {
       return;
@@ -191,10 +195,10 @@ export default class GameScreen extends Container {
     if (amount === 0) {
       return;
     }
-    const initialEventCellPosition = {
-      x: cells[0].position.x,
-      y: cells[0].position.y,
-    };
+    const initialEventCellPosition = cells[0]?.position.clone();
+    if (!initialEventCellPosition) {
+      return;
+    }
     const finalDestination = {
       x: TILE_OFFSET_X,
       y: -60,
@@ -202,14 +206,11 @@ export default class GameScreen extends Container {
     for (let i = 0; i < amount; i += 1) {
       const cell = cells[i];
       const coord = coordinates[i];
-      if (!cell) {
+      if (!cell || !coord) {
         continue;
       }
-      this._map[coord.y][coord.x] = this.prepareCell(EMPTY_GROUP_NAME);
-      const source = {
-        x: cell.position.x,
-        y: cell.position.y,
-      };
+      this._map.setCell(coord.x, coord.y, this.prepareCell(EMPTY_GROUP_NAME));
+      const source = cell.position.clone();
       const intermediateDestination = {
         x: initialEventCellPosition.x + (Math.random() * 2 - 1) * amount * 3,
         y: initialEventCellPosition.y + (Math.random() * 2 - 1) * amount * 3,
@@ -245,11 +246,14 @@ export default class GameScreen extends Container {
       let amountOfEmptyCells = 0;
       let lowestEmptyCell = null;
       for (let y = MAP_HEIGHT - 1; y >= 0; y -= 1) {
-        const cell = this._map[y][x];
+        const cell = this._map.getCell(x, y);
+        if (!cell) {
+          continue;
+        }
         if (lowestEmptyCell) {
           if (cell.isNotEmpty()) {
             listOfCells.push(cell);
-            this._map[y][x] = this.prepareCell(EMPTY_GROUP_NAME);
+            this._map.setCell(x, y, this.prepareCell(EMPTY_GROUP_NAME));
           }
         } else if (cell.isEmpty()) {
           lowestEmptyCell = { x, y };
@@ -264,16 +268,17 @@ export default class GameScreen extends Container {
         for (let i = 0; i < amount; i += 1) {
           const { x: lowestX, y: lowestY } = lowestEmptyCell;
           const cell = listOfCells[i];
-          const source = {
-            x: cell.position.x,
-            y: cell.position.y,
-          };
+          const lowestCell = this._map.getCell(lowestX, lowestY - i);
+          if (!cell || !lowestCell) {
+            continue;
+          }
+          const source = cell.position.clone();
           const destination = {
             x: calcX(lowestX),
             y: calcY(lowestY - i),
           };
-          this.pushToBuffer(this._map[lowestY - i][lowestX]);
-          this._map[lowestY - i][lowestX] = cell;
+          this.pushToBuffer(lowestCell);
+          this._map.setCell(lowestX, lowestY - i, cell);
           new TWEEN.Tween(source)
             .to(destination, 800)
             .easing(TWEEN.Easing.Bounce.Out)
@@ -286,7 +291,8 @@ export default class GameScreen extends Container {
         for (let i = amountOfEmptyCells - 1; i >= 0; i -= 1) {
           const cellType = this._cellsGenerator.next().value;
           const cell = this.prepareCell(cellType);
-          if (cell) {
+          const mapCell = this._map.getCell(x, i);
+          if (cell && mapCell) {
             const source = {
               alpha: 0,
               x: calcX(x),
@@ -301,8 +307,8 @@ export default class GameScreen extends Container {
             cell.alpha = 0;
             cell.position.set(source.x, source.y);
             cell.renderable = true;
-            this.pushToBuffer(this._map[i][x]);
-            this._map[i][x] = cell;
+            this.pushToBuffer(mapCell);
+            this._map.setCell(x, i, cell)
             new TWEEN.Tween(source)
               .to(destination, 800)
               .easing(TWEEN.Easing.Bounce.Out)
@@ -317,7 +323,7 @@ export default class GameScreen extends Container {
     }
   }
 
-  private updateScore(score: number) {
+  private updateScore() {
     this._scoreText.text = `${this._targetScore} / ${this._score}`;
   }
 
@@ -332,7 +338,7 @@ export default class GameScreen extends Container {
   }
 
   private getCell(pos: Point) {
-    return this._map[pos.y][pos.x];
+    return this._map.getCell(pos.x, pos.y);
   }
 
   private checkWinningConditions() {
@@ -350,13 +356,16 @@ export default class GameScreen extends Container {
         const cell = this.prepareCell(cellType);
         placeOnMap(cell, new Point(x, y));
         cell.renderable = true;
-        const mapCell = this._map[y][x];
+        const mapCell = this._map.getCell(x, y);
+        if (!mapCell) {
+          continue;
+        }
         if (mapCell.isNotEmpty()) {
           mapCell.renderable = false;
           mapCell.position.x = -mapCell.width - 1;
           this.pushToBuffer(mapCell);
         }
-        this._map[y][x] = cell;
+        this._map.setCell(x, y, cell);
         this._cellsLayer.addChild(cell);
       }
     }
@@ -364,7 +373,7 @@ export default class GameScreen extends Container {
 
   private incrementScore(pos: Point, score: number) {
     this._score += score;
-    this.updateScore(score);
+    this.updateScore();
     const text = this._bufferOfScoreTexts.pop();
     if (text) {
       const source = {
@@ -439,9 +448,6 @@ export default class GameScreen extends Container {
   }
 
   private initCells() {
-    this._map = Array(MAP_HEIGHT).fill(null).map(
-      () => Array(MAP_WIDTH).fill(null).map(() => this.prepareCell('')),
-    );
     this.placeCellsOnMap();
   }
 
@@ -461,7 +467,8 @@ export default class GameScreen extends Container {
     this._scoreText.anchor.set(0.5, 1);
     this._scoreText.position.set(TILE_OFFSET_X + 75, TILE_OFFSET_Y - this.TEXT_OFFSET);
     this.addChild(this._scoreText);
-    this.updateScore(0);
+    this._score = 0;
+    this.updateScore();
   }
 
   private initMoves() {
@@ -490,7 +497,7 @@ export default class GameScreen extends Container {
   private handleRestart = () => {
     this._score = 0;
     this._moves = this._maxMoves;
-    this.updateScore(0);
+    this.updateScore();
     this.updateMoves(this._maxMoves);
     this.updateProgressBar();
     this.placeCellsOnMap();

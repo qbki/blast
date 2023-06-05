@@ -3,7 +3,7 @@ import {
   Point,
   Text,
   TextStyle,
-} from 'pixi.js-legacy';
+} from 'pixi.js';
 
 import { TEXT_STYLE } from './consts';
 
@@ -26,13 +26,13 @@ export default class Button extends Container {
       dropShadowDistance: 4,
       ...props.style,
     });
+    const anchor = props.anchor || new Point(0.5, 0.5);
     this._text = new Text(props.caption, style);
     this._text.position.set(props.x, props.y);
-    this._text.anchor = props.anchor || new Point(0.5, 0.5);
+    this._text.anchor.set(anchor.x, anchor.y);
     this.addChild(this._text);
 
     this.interactive = true;
-    this.buttonMode = true;
     this.on('pointerover', this.onButtonOver);
     this.on('pointerout', this.onButtonOut);
     this.on('pointerdown', this.onButtonDown);

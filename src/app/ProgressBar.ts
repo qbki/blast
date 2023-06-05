@@ -3,7 +3,7 @@ import {
   Graphics,
   Matrix,
   Texture,
-} from 'pixi.js-legacy';
+} from 'pixi.js';
 
 interface ProgressBarProps {
   barTexture: Texture;
@@ -14,7 +14,6 @@ interface ProgressBarProps {
 export default class ProgressBar extends Container {
   private static HEIGHT = 32;
   private static ROUND = 17;
-  private _width = 0;
   private _bar: Graphics;
 
   constructor({ barTexture, bgTexture, width }: ProgressBarProps) {
@@ -24,18 +23,33 @@ export default class ProgressBar extends Container {
     const scale = Matrix.IDENTITY.scale(1, 0.5);
 
     const bg = new Graphics();
-    bg.beginTextureFill(bgTexture, 0xffffff, 1, scale);
+    bg.beginTextureFill({
+        texture: bgTexture,
+        color: 0xffffff,
+        alpha: 1,
+        matrix: scale
+    });
     bg.drawRoundedRect(0, 0, width, Self.HEIGHT, Self.ROUND);
     bg.endFill();
 
     const mask = new Graphics();
-    mask.beginTextureFill(bgTexture, 0xffffff, 1, scale);
+    mask.beginTextureFill({
+        texture: bgTexture,
+        color: 0xffffff,
+        alpha: 1,
+        matrix: scale
+    });
     mask.drawRoundedRect(0, 0, width, Self.HEIGHT, Self.ROUND);
     mask.endFill();
 
     const bar = new Graphics();
     this._bar = bar;
-    bar.beginTextureFill(barTexture, 0xffffff, 1, scale);
+    bar.beginTextureFill({
+      texture: barTexture,
+      color: 0xffffff,
+      alpha: 1,
+      matrix: scale
+    });
     bar.drawRoundedRect(-width, 0, width, Self.HEIGHT, Self.ROUND);
     bar.endFill();
 
