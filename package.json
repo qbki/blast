@@ -9,6 +9,7 @@
     "build": "vite build ./src --config ./vite.config.ts",
     "build-preview": "vite preview",
     "lint": "eslint ./src",
+    "check-types": "tsc",
     "watch-type-errors": "tsc --noEmit --watch"
   },
   "browserslist": [

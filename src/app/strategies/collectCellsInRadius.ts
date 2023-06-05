@@ -1,4 +1,5 @@
 import { Point } from 'pixi.js';
+import { GameMap } from '../GameMap';
 
 export function collectCellsInRadius<T>(
   map: GameMap<T>,

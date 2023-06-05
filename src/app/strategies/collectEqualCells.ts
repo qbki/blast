@@ -1,4 +1,5 @@
 import { Point } from 'pixi.js';
+import { GameMap } from '../GameMap';
 import { CellSpriteType } from '../types';
 
 function collectNearestEqualCells<T extends CellSpriteType>(
