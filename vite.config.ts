@@ -7,6 +7,7 @@ function root(...args: string[]) {
 
 export default defineConfig({
   publicDir: root('assets'),
+  base: './',
   build: {
     outDir: root('dist')
   },
